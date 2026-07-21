@@ -141,10 +141,12 @@
   function buildHeader(data) {
     var header = el('div', { id: 'header' });
 
+    var logoDiv = el('div', { id: 'logo' });
     var titleLink = el('a', { href: '/', title: 'Home' });
     var h1 = el('h1', {}, data.brand);
     titleLink.appendChild(h1);
-    header.appendChild(titleLink);
+    logoDiv.appendChild(titleLink);
+    header.appendChild(logoDiv);
 
     var linksDiv = el('div', { className: 'links' });
     var centerWrap = el('center');
@@ -161,21 +163,18 @@
       centerWrap.appendChild(a);
     });
 
-    // Navigation links first
+    // Navigation links
     linksDiv.appendChild(centerWrap);
+    header.appendChild(linksDiv);
     
-    // Social icons on their own row below links
+    // Social icons row — outside of .links div
     var socialWrap = el('div', { className: 'social-row' });
-    data.social.forEach(function (s, i) {
+    data.social.forEach(function (s) {
       var iconA = el('a', { href: s.href, target: '_blank', title: s.label, 'aria-label': s.label });
       iconA.innerHTML = s.svg;
       socialWrap.appendChild(iconA);
-      if (i < data.social.length - 1) {
-        socialWrap.appendChild(el('span', { className: 'social-spacer' }));
-      }
     });
-    linksDiv.appendChild(socialWrap);
-    header.appendChild(linksDiv);
+    header.appendChild(socialWrap);
     header.appendChild(el('div', { className: 'clear' }));
 
     return header;

@@ -203,8 +203,6 @@
 
   function showForm(id) {
     editingId = id;
-    var wrap = document.getElementById('admin-form-wrap');
-    if (!wrap) return;
     var posts = getPosts();
     var post = id ? posts.find(function (p) { return p._id === id; }) : {};
 
@@ -214,29 +212,35 @@
     var isLink = type === 'link';
     var isReblog = type === 'reblog';
 
-    var html = '<div id="admin-form">' +
-      '<div class="row"><div>' +
-        '<label>Type</label>' +
-        '<select id="af-type">' +
-          '<option value="photo"' + (isPhoto ? ' selected' : '') + '>Photo</option>' +
-          '<option value="video"' + (isVideo ? ' selected' : '') + '>Video</option>' +
-          '<option value="link"' + (isLink ? ' selected' : '') + '>Link</option>' +
-          '<option value="reblog"' + (isReblog ? ' selected' : '') + '>Reblog</option>' +
-        '</select>' +
-      '</div><div>' +
-        '<label>Published</label>' +
-        '<select id="af-published">' +
-          '<option value="true"' + (post.published !== false ? ' selected' : '') + '>Yes</option>' +
-          '<option value="false"' + (post.published === false ? ' selected' : '') + '>No (Draft)</option>' +
-        '</select>' +
-      '</div></div>' +
-      '<div class="row"><div>' +
-        '<label>Date Label</label>' +
-        '<input id="af-date" type="text" placeholder="e.g. 21.Jul.26" value="' + escAttr(post.date || '') + '" />' +
-      '</div><div>' +
-        '<label>Sort Order (lower = first)</label>' +
-        '<input id="af-order" type="number" value="' + (post.sortOrder || 0) + '" />' +
-      '</div></div>';
+    // Remove existing modal if any
+    closeFormModal();
+
+    var html = '<div id="admin-modal-backdrop"></div>' +
+      '<div id="admin-modal">' +
+        '<div id="admin-form">' +
+          '<h3 style="font-family:\'Six Caps\',sans-serif;font-size:28px;font-weight:normal;margin:0 0 20px;text-transform:uppercase;color:#000;">' + (id ? 'Edit Post' : 'New Post') + '</h3>' +
+          '<div class="row"><div>' +
+            '<label>Type</label>' +
+            '<select id="af-type">' +
+              '<option value="photo"' + (isPhoto ? ' selected' : '') + '>Photo</option>' +
+              '<option value="video"' + (isVideo ? ' selected' : '') + '>Video</option>' +
+              '<option value="link"' + (isLink ? ' selected' : '') + '>Link</option>' +
+              '<option value="reblog"' + (isReblog ? ' selected' : '') + '>Reblog</option>' +
+            '</select>' +
+          '</div><div>' +
+            '<label>Published</label>' +
+            '<select id="af-published">' +
+              '<option value="true"' + (post.published !== false ? ' selected' : '') + '>Yes</option>' +
+              '<option value="false"' + (post.published === false ? ' selected' : '') + '>No (Draft)</option>' +
+            '</select>' +
+          '</div></div>' +
+          '<div class="row"><div>' +
+            '<label>Date Label</label>' +
+            '<input id="af-date" type="text" placeholder="e.g. 21.Jul.26" value="' + escAttr(post.date || '') + '" />' +
+          '</div><div>' +
+            '<label>Sort Order (lower = first)</label>' +
+            '<input id="af-order" type="number" value="' + (post.sortOrder || 0) + '" />' +
+          '</div></div>';
 
     if (isPhoto) {
       html += '<label>Image URL</label>' +
@@ -270,14 +274,23 @@
     }
 
     html += '<div class="actions">' +
-        '<button class="btn" id="af-save">Save</button> ' +
-        '<button class="btn btn-outline" id="af-cancel">Cancel</button>' +
-      '</div></div>';
+          '<button class="btn" id="af-save">Save</button> ' +
+          '<button class="btn btn-outline" id="af-cancel">Cancel</button>' +
+        '</div></div></div>';
 
-    wrap.innerHTML = html;
+    var modalWrap = document.createElement('div');
+    modalWrap.id = 'admin-modal-overlay';
+    modalWrap.className = 'open';
+    modalWrap.innerHTML = html;
+    document.body.appendChild(modalWrap);
+
+    var modal = document.getElementById('admin-modal');
+
+    // Close on backdrop click
+    document.getElementById('admin-modal-backdrop').addEventListener('click', closeFormModal);
 
     // Type change handler
-    wrap.querySelector('#af-type').addEventListener('change', function () {
+    modal.querySelector('#af-type').addEventListener('change', function () {
       // Re-render form with new type but keep id
       var tempPost = gatherFormData();
       tempPost._id = editingId;
@@ -301,8 +314,8 @@
       }
     });
 
-    wrap.querySelector('#af-save').addEventListener('click', function () { saveForm(); });
-    wrap.querySelector('#af-cancel').addEventListener('click', function () { editingId = null; wrap.innerHTML = ''; });
+    modal.querySelector('#af-save').addEventListener('click', function () { saveForm(); });
+    modal.querySelector('#af-cancel').addEventListener('click', closeFormModal);
   }
 
   function gatherFormData() {
@@ -339,6 +352,12 @@
     return data;
   }
 
+  function closeFormModal() {
+    var overlay = document.getElementById('admin-modal-overlay');
+    if (overlay) overlay.remove();
+    editingId = null;
+  }
+
   function saveForm() {
     var posts = getPosts();
     var data = gatherFormData();
@@ -351,8 +370,7 @@
     }
 
     savePosts(posts);
-    editingId = null;
-    document.getElementById('admin-form-wrap').innerHTML = '';
+    closeFormModal();
     renderAdminTable();
   }
 
