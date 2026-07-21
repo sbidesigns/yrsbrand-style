@@ -50,7 +50,7 @@ tmblr-iframe-compact .tmblr-iframe--unified-controls { display: none !important;
 
 /* Social Icons Row */
 .social-row {
-  display: flex;
+  display: inline-flex;
   justify-content: center;
   align-items: center;
   gap: 32px;
