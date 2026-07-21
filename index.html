@@ -47,7 +47,7 @@
       var container = document.getElementById('container');
       if (!container) return;
 
-      // If posts are stuck in an old inner wrapper, pull them back to container
+      // Nuke old inner wrapper if exists — pull posts back to container
       var oldInner = document.getElementById('masonry-inner');
       if (oldInner) {
         while (oldInner.firstChild) container.appendChild(oldInner.firstChild);
@@ -60,44 +60,58 @@
       var colW = 330;
       var gap = 15;
 
-      // Container setup
+      // RESET container — use setProperty with 'important' to beat CSS !important rules
       container.style.position = 'relative';
       container.style.height = 'auto';
       container.style.minHeight = '';
-      container.style.textAlign = 'left'; /* reset from -webkit-center */
+      container.style.width = '100%';
+      container.style.maxWidth = '1050px';
+      container.style.marginLeft = 'auto';
+      container.style.marginRight = 'auto';
+      // This beats #container { text-align:-webkit-center !important }
+      container.setProperty ? container.style.setProperty('text-align','center','important')
+                            : container.style.textAlign = 'center';
 
-      var containerWidth = container.offsetWidth;
+      var containerWidth = container.offsetWidth || container.clientWidth || 1050;
       var cols = Math.max(1, Math.floor((containerWidth + gap) / (colW + gap)));
       var colHeights = new Array(cols).fill(0);
-
-      // Calculate total content width & centering offset
       var totalContentW = (cols * colW) + ((cols - 1) * gap);
-      var offsetX = Math.max(0, (containerWidth - totalContentW) / 2);
 
+      // Create inner wrapper — the key to reliable centering
+      var inner = document.createElement('div');
+      inner.id = 'masonry-inner';
+      inner.cssText = '';
+      inner.style.position = 'relative';
+      inner.style.width = totalContentW + 'px';
+      inner.style.display = 'inline-block';   // centers inside text-align:center parent
+      inner.style.verticalAlign = 'top';
+      inner.style.textAlign = 'left';
+
+      // Move ALL posts into inner wrapper
+      Array.prototype.forEach.call(posts, function (p) { inner.appendChild(p); });
+      container.appendChild(inner);
+
+      // Now position posts absolutely INSIDE inner wrapper
+      posts = inner.querySelectorAll('.post');
       posts.forEach(function (post) {
-        // Force absolute positioning — no float, no margin
         post.style.float = 'none';
         post.style.margin = '0';
         post.style.position = 'absolute';
 
-        // Find shortest column
         var shortest = 0;
         for (var i = 1; i < cols; i++) {
           if (colHeights[i] < colHeights[shortest]) shortest = i;
         }
-
-        // Position WITH centering offset baked in
-        post.style.left = (offsetX + shortest * (colW + gap)) + 'px';
+        post.style.left = (shortest * (colW + gap)) + 'px';
         post.style.top = colHeights[shortest] + 'px';
         colHeights[shortest] += post.offsetHeight + gap;
       });
 
-      // Set container height to fit all posts
       var maxH = Math.max.apply(null, colHeights);
-      if (maxH > 0) container.style.height = maxH + 'px';
+      if (maxH > 0) inner.style.height = maxH + 'px';
     }
     window.addEventListener('resize', masonryLayout);
-    window.addEventListener('load', function () { setTimeout(masonryLayout, 100); });
+    window.addEventListener('load', function () { setTimeout(masonryLayout, 150); });
   </script>
   <script src="site.js"></script>
   <script src="ui.js"></script>
