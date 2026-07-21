@@ -206,77 +206,12 @@
     var posts = getPosts();
     var post = id ? posts.find(function (p) { return p._id === id; }) : {};
 
-    var type = post.type || 'photo';
-    var isPhoto = type === 'photo';
-    var isVideo = type === 'video';
-    var isLink = type === 'link';
-    var isReblog = type === 'reblog';
-
     // Remove existing modal if any
     closeFormModal();
 
+    // Create modal shell
     var html = '<div id="admin-modal-backdrop"></div>' +
-      '<div id="admin-modal">' +
-        '<div id="admin-form">' +
-          '<h3 style="font-family:\'Six Caps\',sans-serif;font-size:28px;font-weight:normal;margin:0 0 20px;text-transform:uppercase;color:#000;">' + (id ? 'Edit Post' : 'New Post') + '</h3>' +
-          '<div class="row"><div>' +
-            '<label>Type</label>' +
-            '<select id="af-type">' +
-              '<option value="photo"' + (isPhoto ? ' selected' : '') + '>Photo</option>' +
-              '<option value="video"' + (isVideo ? ' selected' : '') + '>Video</option>' +
-              '<option value="link"' + (isLink ? ' selected' : '') + '>Link</option>' +
-              '<option value="reblog"' + (isReblog ? ' selected' : '') + '>Reblog</option>' +
-            '</select>' +
-          '</div><div>' +
-            '<label>Published</label>' +
-            '<select id="af-published">' +
-              '<option value="true"' + (post.published !== false ? ' selected' : '') + '>Yes</option>' +
-              '<option value="false"' + (post.published === false ? ' selected' : '') + '>No (Draft)</option>' +
-            '</select>' +
-          '</div></div>' +
-          '<div class="row"><div>' +
-            '<label>Date Label</label>' +
-            '<input id="af-date" type="text" placeholder="e.g. 21.Jul.26" value="' + escAttr(post.date || '') + '" />' +
-          '</div><div>' +
-            '<label>Sort Order (lower = first)</label>' +
-            '<input id="af-order" type="number" value="' + (post.sortOrder || 0) + '" />' +
-          '</div></div>';
-
-    if (isPhoto) {
-      html += '<label>Image URL</label>' +
-        '<input id="af-img" type="text" placeholder="https://..." value="' + escAttr(post.img || '') + '" />' +
-        '<div class="row"><div>' +
-          '<label>Notes Count</label>' +
-          '<input id="af-notes" type="number" value="' + (post.notes || 0) + '" />' +
-        '</div><div>' +
-          '<label>Reblog URL (optional)</label>' +
-          '<input id="af-reblog" type="text" placeholder="https://..." value="' + escAttr(post.reblogUrl || '') + '" />' +
-        '</div></div>';
-    }
-
-    if (isVideo) {
-      html += '<label>YouTube Embed URL</label>' +
-        '<input id="af-src" type="text" placeholder="https://www.youtube.com/embed/..." value="' + escAttr(post.src || '') + '" />' +
-        '<label>Video Title</label>' +
-        '<input id="af-vtitle" type="text" value="' + escAttr(post.title || '') + '" />';
-    }
-
-    if (isLink) {
-      html += '<label>Link Title</label>' +
-        '<input id="af-ltitle" type="text" value="' + escAttr(post.title || '') + '" />' +
-        '<label>Link URL</label>' +
-        '<input id="af-lhref" type="text" placeholder="https://..." value="' + escAttr(post.href || '') + '" />';
-    }
-
-    if (isReblog) {
-      html += '<label>HTML Content</label>' +
-        '<textarea id="af-html" placeholder="Paste reblog HTML here...">' + escHtml(post.html || '') + '</textarea>';
-    }
-
-    html += '<div class="actions">' +
-          '<button class="btn" id="af-save">Save</button> ' +
-          '<button class="btn btn-outline" id="af-cancel">Cancel</button>' +
-        '</div></div></div>';
+      '<div id="admin-modal"><div id="admin-form"></div></div>';
 
     var modalWrap = document.createElement('div');
     modalWrap.id = 'admin-modal-overlay';
@@ -284,38 +219,11 @@
     modalWrap.innerHTML = html;
     document.body.appendChild(modalWrap);
 
-    var modal = document.getElementById('admin-modal');
-
     // Close on backdrop click
     document.getElementById('admin-modal-backdrop').addEventListener('click', closeFormModal);
 
-    // Type change handler
-    modal.querySelector('#af-type').addEventListener('change', function () {
-      // Re-render form with new type but keep id
-      var tempPost = gatherFormData();
-      tempPost._id = editingId;
-      tempPost.type = this.value;
-      // Temporarily save and re-show
-      var allPosts = getPosts();
-      if (!editingId) {
-        allPosts.push(tempPost);
-        savePosts(allPosts);
-        showForm(tempPost._id);
-        // Remove the temp post since we're just editing
-        allPosts = getPosts().filter(function (p) { return p._id !== tempPost._id; });
-        savePosts(allPosts);
-      } else {
-        var idx = allPosts.findIndex(function (p) { return p._id === editingId; });
-        if (idx >= 0) { allPosts[idx] = tempPost; savePosts(allPosts); }
-        showForm(editingId);
-        // Restore original
-        allPosts[idx] = post;
-        savePosts(allPosts);
-      }
-    });
-
-    modal.querySelector('#af-save').addEventListener('click', function () { saveForm(); });
-    modal.querySelector('#af-cancel').addEventListener('click', closeFormModal);
+    // Render form fields inside the modal
+    renderFormFields(post);
   }
 
   function gatherFormData() {
@@ -350,6 +258,95 @@
     }
 
     return data;
+  }
+
+  function renderFormFields(post) {
+    var type = post.type || 'photo';
+    var isPhoto = type === 'photo';
+    var isVideo = type === 'video';
+    var isLink = type === 'link';
+    var isReblog = type === 'reblog';
+
+    var formEl = document.getElementById('admin-form');
+    if (!formEl) return;
+
+    var html = '<h3 style="font-family:\'Six Caps\',sans-serif;font-size:28px;font-weight:normal;margin:0 0 20px;text-transform:uppercase;color:#000;">' + (post._id && post._id !== editingId ? 'Edit Post' : 'New Post') + '</h3>' +
+      '<div class="row"><div>' +
+        '<label>Type</label>' +
+        '<select id="af-type">' +
+          '<option value="photo"' + (isPhoto ? ' selected' : '') + '>Photo</option>' +
+          '<option value="video"' + (isVideo ? ' selected' : '') + '>Video</option>' +
+          '<option value="link"' + (isLink ? ' selected' : '') + '>Link</option>' +
+          '<option value="reblog"' + (isReblog ? ' selected' : '') + '>Reblog</option>' +
+        '</select>' +
+      '</div><div>' +
+        '<label>Published</label>' +
+        '<select id="af-published">' +
+          '<option value="true"' + (post.published !== false ? ' selected' : '') + '>Yes</option>' +
+          '<option value="false"' + (post.published === false ? ' selected' : '') + '>No (Draft)</option>' +
+        '</select>' +
+      '</div></div>' +
+      '<div class="row"><div>' +
+        '<label>Date Label</label>' +
+        '<input id="af-date" type="text" placeholder="e.g. 21.Jul.26" value="' + escAttr(post.date || '') + '" />' +
+      '</div><div>' +
+        '<label>Sort Order (lower = first)</label>' +
+        '<input id="af-order" type="number" value="' + (post.sortOrder || 0) + '" />' +
+      '</div></div>';
+
+    if (isPhoto) {
+      html += '<label>Image URL</label>' +
+        '<input id="af-img" type="text" placeholder="https://example.com/image.jpg" value="' + escAttr(post.img || '') + '" />' +
+        '<div class="row"><div>' +
+          '<label>Notes Count</label>' +
+          '<input id="af-notes" type="number" value="' + (post.notes || 0) + '" />' +
+        '</div><div>' +
+          '<label>Reblog URL (optional)</label>' +
+          '<input id="af-reblog" type="text" placeholder="https://..." value="' + escAttr(post.reblogUrl || '') + '" />' +
+        '</div></div>';
+    }
+
+    if (isVideo) {
+      html += '<label>YouTube Embed URL</label>' +
+        '<input id="af-src" type="text" placeholder="https://www.youtube.com/embed/VIDEO_ID" value="' + escAttr(post.src || '') + '" />' +
+        '<label>Video Title</label>' +
+        '<input id="af-vtitle" type="text" placeholder="My Video Title" value="' + escAttr(post.title || '') + '" />';
+    }
+
+    if (isLink) {
+      html += '<label>Link Title</label>' +
+        '<input id="af-ltitle" type="text" placeholder="Article Title" value="' + escAttr(post.title || '') + '" />' +
+        '<label>Link URL</label>' +
+        '<input id="af-lhref" type="text" placeholder="https://example.com" value="' + escAttr(post.href || '') + '" />';
+    }
+
+    if (isReblog) {
+      html += '<label>HTML Content</label>' +
+        '<textarea id="af-html" placeholder="Paste reblog HTML here...">' + escHtml(post.html || '') + '</textarea>';
+    }
+
+    html += '<div class="actions">' +
+        '<button class="btn" id="af-save">Save Post</button> ' +
+        '<button class="btn btn-outline" id="af-cancel">Cancel</button>' +
+      '</div>';
+
+    formEl.innerHTML = html;
+    bindFormEvents();
+  }
+
+  function bindFormEvents() {
+    var formEl = document.getElementById('admin-form');
+    if (!formEl) return;
+
+    formEl.querySelector('#af-type').addEventListener('change', function () {
+      var currentData = gatherFormData();
+      currentData._id = editingId;
+      currentData.type = this.value;
+      renderFormFields(currentData);
+    });
+
+    formEl.querySelector('#af-save').addEventListener('click', function () { saveForm(); });
+    formEl.querySelector('#af-cancel').addEventListener('click', closeFormModal);
   }
 
   function closeFormModal() {

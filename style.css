@@ -287,29 +287,96 @@ img { border:none; }
 #admin-wrap .badge { display: inline-block; padding: 2px 8px; font-size: 9px; text-transform: uppercase; font-weight: bold; }
 #admin-wrap .badge-pub { background: #000; color: #fff; }
 #admin-wrap .badge-draft { background: #eee; color: #888; }
-#admin-form { max-width: 700px; margin: 20px auto 0; padding: 20px; background: #fafafa; }
+#admin-form { margin: 0; padding: 0; background: transparent; }
 
 /* ─── Admin Form Modal (New Post / Edit) ─── */
 #admin-modal-overlay { display: none; position: fixed; inset: 0; z-index: 20000; }
 #admin-modal-overlay.open { display: flex; align-items: center; justify-content: center; }
 #admin-modal-backdrop {
   position: absolute; inset: 0;
-  background: rgba(0, 0, 0, 0.45);
+  background: rgba(0, 0, 0, 0.5);
 }
 #admin-modal {
   position: relative;
-  width: 560px;
+  width: 580px;
   max-width: 92vw;
-  max-height: 90vh;
+  max-height: 88vh;
   overflow-y: auto;
   background: #fff;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.2);
-  padding: 32px 28px 28px;
+  box-shadow: 0 24px 80px rgba(0,0,0,0.25), 0 8px 24px rgba(0,0,0,0.15);
+  padding: 36px 32px 28px;
   box-sizing: border-box;
+  border-radius: 4px;
 }
-#admin-form label { display: block; text-transform: uppercase; font-weight: bold; font-size: 10px; margin: 16px 0 6px; }
-#admin-form input, #admin-form select, #admin-form textarea { width: 100%; padding: 10px; font-size: 13px; border: 1px solid #ddd; font-family: inherit; box-sizing: border-box; }
-#admin-form textarea { min-height: 120px; resize: vertical; }
-#admin-form .row { display: flex; gap: 16px; }
-#admin-form .row > div { flex: 1; }
-#admin-form .actions { margin-top: 24px; }
+/* Modal form styling */
+#admin-form h3 {
+  font-family: 'Six Caps', sans-serif;
+  font-size: 32px;
+  font-weight: normal;
+  margin: 0 0 24px;
+  text-transform: uppercase;
+  color: #000;
+  letter-spacing: 1px;
+  border-bottom: 1px solid #000;
+  padding-bottom: 12px;
+}
+#admin-form label {
+  display: block;
+  text-transform: uppercase;
+  font-weight: bold;
+  font-size: 9px;
+  letter-spacing: 0.8px;
+  color: #666;
+  margin: 18px 0 6px;
+}
+#admin-form label:first-of-type { margin-top: 4px; }
+#admin-form input,
+#admin-form select,
+#admin-form textarea {
+  width: 100%;
+  padding: 10px 12px;
+  font-size: 13px;
+  border: 1px solid #ddd;
+  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  box-sizing: border-box;
+  border-radius: 3px;
+  transition: border-color 0.2s ease;
+  background: #fafafa;
+}
+#admin-form input:focus,
+#admin-form select:focus,
+#admin-form textarea:focus {
+  outline: none;
+  border-color: #000;
+  background: #fff;
+}
+#admin-form select {
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23666'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 30px;
+}
+#admin-form textarea {
+  min-height: 120px;
+  resize: vertical;
+  line-height: 1.5;
+}
+#admin-form .row {
+  display: flex;
+  gap: 16px;
+}
+#admin-form .row > div {
+  flex: 1;
+  min-width: 0;
+}
+#admin-form .actions {
+  margin-top: 28px;
+  padding-top: 20px;
+  border-top: 1px dotted rgba(0,0,0,0.12);
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
