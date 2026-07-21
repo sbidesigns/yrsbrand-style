@@ -43,12 +43,12 @@
   </div>
   <div id="center"></div>
   <script>
-    /* ── Grid Layout via CSS Grid — auto-fill + centering ─── */
+    /* ── Masonry Layout — offset-based centering at ALL viewport sizes ─── */
     function masonryLayout() {
       var c = document.getElementById('container');
       if (!c) return;
 
-      /* Nuke any leftover inline styles from old masonry */
+      /* Nuke ANY leftover inline styles from old masonry attempts */
       var posts = c.querySelectorAll('.post');
       for (var i = 0; i < posts.length; i++) {
         posts[i].style.position = '';
@@ -60,12 +60,31 @@
         posts[i].style.display = '';
       }
 
-      /* Pure CSS grid — browser handles ALL positioning & centering */
-      c.style.display = 'grid';
-      c.style.gridTemplateColumns = 'repeat(auto-fill, 320px)';
-      c.style.justifyContent = 'center';
-      c.style.gap = '30px';
-      c.style.columnCount = ''; /* remove old column-count if present */
+      /* Reset container to clean state */
+      c.style.display = '';
+      c.style.gridTemplateColumns = '';
+      c.style.justifyContent = '';
+      c.style.gap = '';
+      c.style.columnCount = '';
+      c.style.paddingLeft = '';
+      c.style.paddingRight = '';
+
+      /* Calculate how many columns fit */
+      var containerWidth = c.offsetWidth || window.innerWidth;
+      var postWidth = 320;
+      var gap = 30;
+      var colUnit = postWidth + gap; /* 350px per column slot */
+      var cols = Math.max(1, Math.floor(containerWidth / colUnit));
+
+      /* Total actual content width */
+      var totalContent = (cols * postWidth) + ((cols - 1) * gap);
+
+      /* Calculate equal left/right padding to CENTER the content */
+      var offset = Math.max(0, (containerWidth - totalContent) / 2);
+
+      /* Apply centering via padding */
+      c.style.paddingLeft = offset + 'px';
+      c.style.paddingRight = offset + 'px';
     }
     window.addEventListener('resize', masonryLayout);
     window.addEventListener('load', function(){ setTimeout(masonryLayout,100); });
