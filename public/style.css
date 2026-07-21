@@ -288,6 +288,25 @@ img { border:none; }
 #admin-wrap .badge-pub { background: #000; color: #fff; }
 #admin-wrap .badge-draft { background: #eee; color: #888; }
 #admin-form { max-width: 700px; margin: 20px auto 0; padding: 20px; background: #fafafa; }
+
+/* ─── Admin Form Modal (New Post / Edit) ─── */
+#admin-modal-overlay { display: none; position: fixed; inset: 0; z-index: 20000; }
+#admin-modal-overlay.open { display: flex; align-items: center; justify-content: center; }
+#admin-modal-backdrop {
+  position: absolute; inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+}
+#admin-modal {
+  position: relative;
+  width: 560px;
+  max-width: 92vw;
+  max-height: 90vh;
+  overflow-y: auto;
+  background: #fff;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+  padding: 32px 28px 28px;
+  box-sizing: border-box;
+}
 #admin-form label { display: block; text-transform: uppercase; font-weight: bold; font-size: 10px; margin: 16px 0 6px; }
 #admin-form input, #admin-form select, #admin-form textarea { width: 100%; padding: 10px; font-size: 13px; border: 1px solid #ddd; font-family: inherit; box-sizing: border-box; }
 #admin-form textarea { min-height: 120px; resize: vertical; }
