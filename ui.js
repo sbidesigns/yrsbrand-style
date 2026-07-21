@@ -472,11 +472,15 @@
 
   /* ── Hash Router (post detail) ───────────────────────────── */
 
+  var _savedScrollY = 0;
+
   function initHashRouter() {
     function onHash() {
       var hash = window.location.hash;
       var match = hash.match(/^#post\/(\d+)$/);
       if (match) {
+        // Save position BEFORE entering detail
+        _savedScrollY = window.scrollY || window.pageYOffset || 0;
         showPostDetail(parseInt(match[1], 10));
       } else if (hash === '#description') {
         closePostDetail();
@@ -625,7 +629,11 @@
     }
     hide('#hovers');
     show('#container, #load_box, #yrs_credit');
-    setTimeout(masonryLayout, 50);
+    // Restore scroll position after content is visible
+    setTimeout(function () {
+      masonryLayout();
+      window.scrollTo(0, _savedScrollY);
+    }, 50);
   }
 
   /* ── Panel toggle ────────────────────────────────────────── */
