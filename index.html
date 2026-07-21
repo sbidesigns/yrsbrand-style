@@ -49,16 +49,40 @@
       var posts = container.querySelectorAll('.post');
       if (!posts.length) return;
 
-      // Reset any inline styles first
-      container.style.cssText = '';
-
       var colW = 330;
       var gap = 15;
+
+      // Get or create inner wrapper for centering
+      var inner = document.getElementById('masonry-inner');
+      if (!inner) {
+        inner = document.createElement('div');
+        inner.id = 'masonry-inner';
+        // Move all existing posts into inner wrapper
+        Array.prototype.forEach.call(posts, function (p) { inner.appendChild(p); });
+        container.appendChild(inner);
+      }
+      posts = inner.querySelectorAll('.post');
+
+      // Reset container to natural state for measurement
+      container.style.position = 'relative';
+      container.style.height = '';
+      container.style.minHeight = '';
+
       var containerWidth = container.offsetWidth;
       var cols = Math.max(1, Math.floor((containerWidth + gap) / (colW + gap)));
       var colHeights = new Array(cols).fill(0);
 
+      // Position posts absolutely inside inner wrapper
+      inner.style.position = 'relative';
+      inner.style.width = ((cols * colW) + ((cols - 1) * gap)) + 'px';
+      inner.style.margin = '0 auto';
+      inner.style.height = 'auto';
+
       posts.forEach(function (post) {
+        // Override any conflicting CSS (float, etc.)
+        post.style.float = 'none';
+        post.style.margin = '0';
+
         var shortest = 0;
         for (var i = 1; i < cols; i++) {
           if (colHeights[i] < colHeights[shortest]) shortest = i;
@@ -70,19 +94,8 @@
       });
 
       var maxH = Math.max.apply(null, colHeights);
-      var totalContentWidth = (cols * colW) + ((cols - 1) * gap);
-      var offsetX = Math.max(0, (containerWidth - totalContentWidth) / 2);
-
-      // Center by shifting all posts right by offsetX
-      posts.forEach(function (post) {
-        var currentLeft = parseFloat(post.style.left) || 0;
-        post.style.left = (currentLeft + offsetX) + 'px';
-      });
-
-      // Set container height only — keep natural width
-      container.style.position = 'relative';
+      inner.style.height = maxH + 'px';
       container.style.height = maxH + 'px';
-      container.style.minHeight = maxH + 'px';
     }
     window.addEventListener('resize', masonryLayout);
     window.addEventListener('load', function () { setTimeout(masonryLayout, 100); });
