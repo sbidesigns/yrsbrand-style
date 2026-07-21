@@ -49,11 +49,11 @@ body { padding:0; margin:0; font-family:'Helvetica Neue', Helvetica, Arial, sans
 
 /* ─── Social Icons Row (SVG, inline-block) — Below Links ─── */
 .social-row { 
-  display: inline-flex; 
+  display: flex; 
   justify-content: center; 
   align-items: center; 
   gap: 32px; 
-  margin-top: 12px;
+  margin: 12px auto 0;
   width: fit-content;
 }
 .social-row a { display: inline-flex; text-decoration: none; }
