@@ -53,6 +53,105 @@ body { padding:0; margin:0; font-family:'Helvetica', arial; font-size:11px;  col
 #post_detail_box > .post .tmblr-full { text-align: center; margin: 10px 0; }
 #post_detail_box > .post .tmblr-full img { max-width: 500px !important; height: auto; }
 
+/* ─── Share Bar (Post Detail) ─── */
+.share-bar {
+  width: 500px;
+  margin: 24px auto 0;
+  padding: 18px 0 0;
+  border-top: 1px dotted rgba(0,0,0,0.1);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.share-bar-label {
+  font-size: 9px;
+  font-weight: bold;
+  text-transform: uppercase;
+  color: #aaa;
+  letter-spacing: 1px;
+  margin-right: 4px;
+}
+.share-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 7px 12px;
+  font-size: 10px;
+  font-weight: bold;
+  text-transform: uppercase;
+  text-decoration: none;
+  color: #fff;
+  border-radius: 3px;
+  transition: all 0.25s ease;
+  cursor: pointer;
+  border: none;
+  letter-spacing: 0.5px;
+}
+.share-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(0,0,0,0.15);
+}
+.share-btn svg {
+  width: 13px;
+  height: 13px;
+  fill: currentColor;
+  flex-shrink: 0;
+}
+.share-btn.facebook { background: #1877f2; }
+.share-btn.facebook:hover { background: #0c63d4; }
+.share-btn.twitter { background: #000; }
+.share-btn.twitter:hover { background: #333; }
+.share-btn.pinterest { background: #e60023; }
+.share-btn.pinterest:hover { background: #ad081b; }
+.share-btn.reddit { background: #ff4500; }
+.share-btn.reddit:hover { background: #cc3700; }
+.share-btn.tumblr { background: #35465c; }
+.share-btn.tumblr:hover { background: #222d3d; }
+.share-btn.email { background: #666; }
+.share-btn.email:hover { background: #444; }
+.copy-link-wrapper {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+.copy-link-input {
+  width: 180px;
+  padding: 7px 10px;
+  font-size: 9px;
+  font-family: 'Courier New', Courier, monospace;
+  border: 1px solid rgba(0,0,0,0.15);
+  border-right: none;
+  border-radius: 3px 0 0 3px;
+  background: #fafafa;
+  color: #555;
+  outline: none;
+  user-select: all;
+}
+.copy-link-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 7px 12px;
+  font-size: 10px;
+  font-weight: bold;
+  text-transform: uppercase;
+  background: #000;
+  color: #fff;
+  border: 1px solid #000;
+  border-radius: 0 3px 3px 0;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  letter-spacing: 0.5px;
+}
+.copy-link-btn:hover { background: #333; border-color: #333; }
+.copy-link-btn.copied { background: #28a745; border-color: #28a745; }
+.copy-link-btn svg { width: 13px; height: 13px; fill: currentColor; }
+
 /* ─── Login Panel ─── */
 #login-panel { display: none; position: fixed; inset: 0; z-index: 10000; background: rgba(255,255,255,0.96); align-items: center; justify-content: center; }
 #login-panel.open { display: flex; }
