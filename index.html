@@ -49,15 +49,13 @@
       var posts = container.querySelectorAll('.post');
       if (!posts.length) return;
 
-      // Reset padding first so we measure true available width
-      container.style.paddingLeft = '0';
-      container.style.paddingRight = '0';
-      container.style.width = '';
+      // Reset any inline styles first
+      container.style.cssText = '';
 
       var colW = 330;
       var gap = 15;
-      var availWidth = container.parentElement.offsetWidth || window.innerWidth;
-      var cols = Math.max(1, Math.floor((availWidth + gap) / (colW + gap)));
+      var containerWidth = container.offsetWidth;
+      var cols = Math.max(1, Math.floor((containerWidth + gap) / (colW + gap)));
       var colHeights = new Array(cols).fill(0);
 
       posts.forEach(function (post) {
@@ -73,19 +71,18 @@
 
       var maxH = Math.max.apply(null, colHeights);
       var totalContentWidth = (cols * colW) + ((cols - 1) * gap);
+      var offsetX = Math.max(0, (containerWidth - totalContentWidth) / 2);
 
-      // Center by setting container width to content width + margin auto
-      container.style.width = totalContentWidth + 'px';
-      container.style.marginLeft = 'auto';
-      container.style.marginRight = 'auto';
+      // Center by shifting all posts right by offsetX
+      posts.forEach(function (post) {
+        var currentLeft = parseFloat(post.style.left) || 0;
+        post.style.left = (currentLeft + offsetX) + 'px';
+      });
+
+      // Set container height only — keep natural width
       container.style.position = 'relative';
       container.style.height = maxH + 'px';
-
-      // Ensure posts don't have leftover inline styles
-      posts.forEach(function (p) {
-        p.style.paddingLeft = '';
-        p.style.paddingRight = '';
-      });
+      container.style.minHeight = maxH + 'px';
     }
     window.addEventListener('resize', masonryLayout);
     window.addEventListener('load', function () { setTimeout(masonryLayout, 100); });
