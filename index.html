@@ -43,12 +43,12 @@
   </div>
   <div id="center"></div>
   <script>
-    /* ── Masonry Layout — offset-based centering at ALL viewport sizes ─── */
+    /* ── Masonry Layout — text-align:center + inline-block centering ─── */
     function masonryLayout() {
       var c = document.getElementById('container');
       if (!c) return;
 
-      /* Nuke ANY leftover inline styles from old masonry attempts */
+      /* Nuke ALL leftover inline styles from old masonry attempts */
       var posts = c.querySelectorAll('.post');
       for (var i = 0; i < posts.length; i++) {
         posts[i].style.position = '';
@@ -60,7 +60,7 @@
         posts[i].style.display = '';
       }
 
-      /* Reset container to clean state */
+      /* Reset container to clean slate */
       c.style.display = '';
       c.style.gridTemplateColumns = '';
       c.style.justifyContent = '';
@@ -69,22 +69,17 @@
       c.style.paddingLeft = '';
       c.style.paddingRight = '';
 
-      /* Calculate how many columns fit */
-      var containerWidth = c.offsetWidth || window.innerWidth;
-      var postWidth = 320;
-      var gap = 30;
-      var colUnit = postWidth + gap; /* 350px per column slot */
-      var cols = Math.max(1, Math.floor(containerWidth / colUnit));
+      /* THE FIX: text-align:center makes inline-block children center! */
+      c.style.textAlign = 'center';
 
-      /* Total actual content width */
-      var totalContent = (cols * postWidth) + ((cols - 1) * gap);
-
-      /* Calculate equal left/right padding to CENTER the content */
-      var offset = Math.max(0, (containerWidth - totalContent) / 2);
-
-      /* Apply centering via padding */
-      c.style.paddingLeft = offset + 'px';
-      c.style.paddingRight = offset + 'px';
+      /* Force posts to inline-block so they respond to text-align */
+      for (var j = 0; j < posts.length; j++) {
+        posts[j].style.display = 'inline-block';
+        posts[j].style.verticalAlign = 'top';
+        posts[j].style.marginBottom = '30px';
+        /* Add horizontal margin for gap between posts */
+        if (j > 0) posts[j].style.marginLeft = '15px';
+      }
     }
     window.addEventListener('resize', masonryLayout);
     window.addEventListener('load', function(){ setTimeout(masonryLayout,100); });
