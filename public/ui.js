@@ -166,13 +166,10 @@
     
     // Social icons on their own row below links
     var socialWrap = el('div', { className: 'social-row' });
-    data.social.forEach(function (s, i) {
+    data.social.forEach(function (s) {
       var iconA = el('a', { href: s.href, target: '_blank', title: s.label, 'aria-label': s.label });
       iconA.innerHTML = s.svg;
       socialWrap.appendChild(iconA);
-      if (i < data.social.length - 1) {
-        socialWrap.appendChild(el('span', { className: 'social-spacer' }));
-      }
     });
     linksDiv.appendChild(socialWrap);
     header.appendChild(linksDiv);
