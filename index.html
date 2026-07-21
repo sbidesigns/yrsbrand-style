@@ -43,75 +43,38 @@
   </div>
   <div id="center"></div>
   <script>
+    /* ── Clean Masonry Grid ────────────────────────────────────── */
     function masonryLayout() {
-      var container = document.getElementById('container');
-      if (!container) return;
-
-      // Nuke old inner wrapper if exists — pull posts back to container
-      var oldInner = document.getElementById('masonry-inner');
-      if (oldInner) {
-        while (oldInner.firstChild) container.appendChild(oldInner.firstChild);
-        oldInner.parentNode.removeChild(oldInner);
-      }
-
-      var posts = container.querySelectorAll('.post');
+      var c = document.getElementById('container');
+      if (!c) return;
+      var posts = c.querySelectorAll('.post');
       if (!posts.length) return;
 
-      var colW = 330;
-      var gap = 15;
+      var COL_W = 320, GAP = 30;
+      c.style.display = 'flex';
+      c.style.flexWrap = 'wrap';
+      c.style.justifyContent = 'center';
+      c.style.alignContent = 'flex-start';
+      c.style.gap = GAP + 'px';
 
-      // RESET container — use setProperty with 'important' to beat CSS !important rules
-      container.style.position = 'relative';
-      container.style.height = 'auto';
-      container.style.minHeight = '';
-      container.style.width = '100%';
-      container.style.maxWidth = '1050px';
-      container.style.marginLeft = 'auto';
-      container.style.marginRight = 'auto';
-      // This beats #container { text-align:-webkit-center !important }
-      container.setProperty ? container.style.setProperty('text-align','center','important')
-                            : container.style.textAlign = 'center';
+      var w = c.offsetWidth;
+      var cols = Math.max(1, Math.floor((w + GAP) / (COL_W + GAP)));
+      var h = new Array(cols).fill(0);
 
-      var containerWidth = container.offsetWidth || container.clientWidth || 1050;
-      var cols = Math.max(1, Math.floor((containerWidth + gap) / (colW + gap)));
-      var colHeights = new Array(cols).fill(0);
-      var totalContentW = (cols * colW) + ((cols - 1) * gap);
-
-      // Create inner wrapper — the key to reliable centering
-      var inner = document.createElement('div');
-      inner.id = 'masonry-inner';
-      inner.cssText = '';
-      inner.style.position = 'relative';
-      inner.style.width = totalContentW + 'px';
-      inner.style.display = 'inline-block';   // centers inside text-align:center parent
-      inner.style.verticalAlign = 'top';
-      inner.style.textAlign = 'left';
-
-      // Move ALL posts into inner wrapper
-      Array.prototype.forEach.call(posts, function (p) { inner.appendChild(p); });
-      container.appendChild(inner);
-
-      // Now position posts absolutely INSIDE inner wrapper
-      posts = inner.querySelectorAll('.post');
-      posts.forEach(function (post) {
-        post.style.float = 'none';
-        post.style.margin = '0';
-        post.style.position = 'absolute';
-
-        var shortest = 0;
-        for (var i = 1; i < cols; i++) {
-          if (colHeights[i] < colHeights[shortest]) shortest = i;
-        }
-        post.style.left = (shortest * (colW + gap)) + 'px';
-        post.style.top = colHeights[shortest] + 'px';
-        colHeights[shortest] += post.offsetHeight + gap;
+      posts.forEach(function(p) {
+        p.style.position = 'absolute';
+        p.style.width = COL_W + 'px';
+        p.style.margin = '0';
+        var s = 0;
+        for (var i=1;i<cols;i++) if(h[i]<h[s]) s=i;
+        p.style.left = (s*(COL_W+GAP))+'px';
+        p.style.top = h[s]+'px';
+        h[s] += p.offsetHeight + GAP;
       });
-
-      var maxH = Math.max.apply(null, colHeights);
-      if (maxH > 0) inner.style.height = maxH + 'px';
+      c.style.height = Math.max.apply(null,h)+'px';
     }
     window.addEventListener('resize', masonryLayout);
-    window.addEventListener('load', function () { setTimeout(masonryLayout, 150); });
+    window.addEventListener('load', function(){ setTimeout(masonryLayout,100); });
   </script>
   <script src="site.js"></script>
   <script src="ui.js"></script>
