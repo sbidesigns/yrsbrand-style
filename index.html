@@ -43,12 +43,24 @@
   </div>
   <div id="center"></div>
   <script>
-    /* ── Masonry via CSS Columns — JS only sets column count ─── */
+    /* ── Masonry via CSS Columns v2 — resets all inline styles ─── */
     function masonryLayout() {
       var c = document.getElementById('container');
       if (!c) return;
+
+      /* CRITICAL: nuke any leftover inline styles from old masonry code */
+      var posts = c.querySelectorAll('.post');
+      for (var i = 0; i < posts.length; i++) {
+        posts[i].style.position = '';
+        posts[i].style.left = '';
+        posts[i].style.top = '';
+        posts[i].style.float = '';
+        posts[i].style.margin = '';
+        posts[i].style.width = '';
+      }
+
       var w = c.offsetWidth || 1050;
-      var colW = 330; /* post width + gap */
+      var colW = 330;
       var cols = Math.max(1, Math.floor(w / colW));
       c.style.columnCount = cols;
     }
