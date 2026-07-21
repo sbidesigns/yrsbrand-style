@@ -528,14 +528,21 @@
       var notesLabel = el('div', { style: 'font-size:10px;font-weight:bold;line-height:20px;margin-bottom:15px;text-transform:uppercase;' });
       notesLabel.textContent = post.notes + ' notes';
       notesWrap.appendChild(notesLabel);
-      // Placeholder note avatars
+      // Placeholder note avatars — self-contained SVG data URI (no external dependency)
       var avatarGrid = el('ol', { className: 'notes' });
+      // Self-contained 16x16 avatar as data URI (YRS "Y" monogram)
+      var avatarDataUri = 'data:image/svg+xml,' + encodeURIComponent(
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16">' +
+        '<rect width="16" height="16" rx="2" fill="#000000"/>' +
+        '<text x="8" y="12.5" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#ffffff" text-anchor="middle">Y</text>' +
+        '</svg>'
+      );
       for (var n = 0; n < Math.min(post.notes, 20); n++) {
         var li = el('li', { className: 'note' });
         var avatar = document.createElement('img');
         avatar.className = 'avatar';
-        avatar.src = 'https://64.media.tumblr.com/avatar_6db2c24da6e1_16.pnj';
-        avatar.alt = '';
+        avatar.src = avatarDataUri;
+        avatar.alt = 'YRS';
         li.appendChild(avatar);
         avatarGrid.appendChild(li);
       }
