@@ -49,7 +49,8 @@
       var posts = container.querySelectorAll('.post');
       if (!posts.length) return;
       var colW = 330;
-      var cols = Math.max(1, Math.floor(container.offsetWidth / colW));
+      var gap = 15;
+      var cols = Math.max(1, Math.floor((container.offsetWidth + gap) / (colW + gap)));
       var colHeights = new Array(cols).fill(0);
       posts.forEach(function (post) {
         var shortest = 0;
@@ -57,13 +58,24 @@
           if (colHeights[i] < colHeights[shortest]) shortest = i;
         }
         post.style.position = 'absolute';
-        post.style.left = (shortest * colW) + 'px';
+        post.style.left = (shortest * (colW + gap)) + 'px';
         post.style.top = colHeights[shortest] + 'px';
-        colHeights[shortest] += post.offsetHeight + 15;
+        colHeights[shortest] += post.offsetHeight + gap;
       });
       var maxH = Math.max.apply(null, colHeights);
+      var totalContentWidth = (cols * colW) + ((cols - 1) * gap);
+      var offsetX = Math.max(0, (container.offsetWidth - totalContentWidth) / 2);
+      // Apply centering offset via padding-left (safer than transform for positioning)
+      container.style.paddingLeft = offsetX + 'px';
+      container.style.paddingRight = offsetX + 'px';
+      container.style.boxSizing = 'border-box';
       container.style.position = 'relative';
       container.style.height = maxH + 'px';
+      // Reset inline padding on posts that might have been set
+      posts.forEach(function (p) {
+        p.style.paddingLeft = '';
+        p.style.paddingRight = '';
+      });
     }
     window.addEventListener('resize', masonryLayout);
     window.addEventListener('load', function () { setTimeout(masonryLayout, 100); });
