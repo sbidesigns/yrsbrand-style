@@ -226,51 +226,56 @@
     renderFormFields(post);
   }
 
+  function val(id) {
+    var el = document.getElementById(id);
+    return el ? el.value : '';
+  }
+
   function gatherFormData() {
-    var type = document.getElementById('af-type').value;
+    var type = val('af-type');
     var tagsInput = document.getElementById('af-tags');
     var data = {
       _id: editingId || genId(),
       type: type,
-      date: document.getElementById('af-date').value,
-      published: document.getElementById('af-published').value === 'true',
-      sortOrder: parseInt(document.getElementById('af-order').value, 10) || 0,
-      timeAgo: document.getElementById('af-timeago').value || '',
+      date: val('af-date'),
+      published: val('af-published') === 'true',
+      sortOrder: parseInt(val('af-order'), 10) || 0,
+      timeAgo: val('af-timeago') || '',
       url: '',
       tags: tagsInput ? tagsInput.value.split(',').map(function (t) { return t.trim().toLowerCase(); }).filter(function (t) { return t; }) : []
     };
 
     switch (type) {
       case 'photo':
-        data.img = document.getElementById('af-img').value;
-        data.notes = parseInt(document.getElementById('af-notes').value, 10) || 0;
-        data.caption = document.getElementById('af-caption').value;
+        data.img = val('af-img');
+        data.notes = parseInt(val('af-notes'), 10) || 0;
+        data.caption = val('af-caption');
         break;
       case 'video':
-        data.src = document.getElementById('af-src').value;
-        data.title = document.getElementById('af-vtitle').value;
+        data.src = val('af-src');
+        data.title = val('af-vtitle');
         break;
       case 'audio':
-        data.platform = document.getElementById('af-platform').value;
-        data.artist = document.getElementById('af-artist').value;
-        data.embedUrl = document.getElementById('af-embedUrl').value;
-        data.title = document.getElementById('af-atitle').value;
+        data.platform = val('af-platform');
+        data.artist = val('af-artist');
+        data.embedUrl = val('af-embedUrl');
+        data.title = val('af-atitle');
         break;
       case 'link':
-        data.title = document.getElementById('af-ltitle').value;
-        data.href = document.getElementById('af-lhref').value;
-        data.desc = document.getElementById('af-ldesc').value;
+        data.title = val('af-ltitle');
+        data.href = val('af-lhref');
+        data.desc = val('af-ldesc');
         break;
       case 'quote':
-        data.text = document.getElementById('af-qtext').value;
-        data.source = document.getElementById('af-qsource').value;
+        data.text = val('af-qtext');
+        data.source = val('af-qsource');
         break;
       case 'text':
-        data.title = document.getElementById('af-ttitle').value;
-        data.body = document.getElementById('af-tbody').value;
+        data.title = val('af-ttitle');
+        data.body = val('af-tbody');
         break;
       case 'reblog':
-        data.html = document.getElementById('af-html').value;
+        data.html = val('af-html');
         break;
     }
 
