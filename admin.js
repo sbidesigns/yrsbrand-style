@@ -133,13 +133,14 @@
     panel.querySelector('#admin-close-btn').addEventListener('click', closeAdmin);
     panel.querySelector('#admin-new-btn').addEventListener('click', function () { showForm(null); });
     panel.querySelector('#admin-load-btn').addEventListener('click', function () {
-      // Trigger load more posts from the main site
+      // Trigger load more posts from the main page
       var loadBtn = document.getElementById('load');
       if (loadBtn && loadBtn.offsetParent !== null) {
         loadBtn.click();
-        renderAdminTable();
+        // Re-render table after a short delay to show new posts
+        setTimeout(renderAdminTable, 200);
       } else {
-        alert('No more posts to load.');
+        alert('All posts loaded.');
       }
     });
 
@@ -172,16 +173,8 @@
         thumb = '<span style="color:#aaa;font-size:10px">VIDEO</span>';
       } else if (p.type === 'link') {
         thumb = '<span style="color:#aaa;font-size:10px">LINK</span>';
-      } else if (p.type === 'reblog') {
-        thumb = '<span style="color:#aaa;font-size:10px">REBLOG</span>';
-      } else if (p.type === 'text') {
-        thumb = '<span style="color:#aaa;font-size:10px">TEXT</span>';
-      } else if (p.type === 'quote') {
-        thumb = '<span style="color:#aaa;font-size:10px">QUOTE</span>';
-      } else if (p.type === 'audio') {
-        thumb = '<span style="color:#aaa;font-size:10px">AUDIO</span>';
       } else {
-        thumb = '<span style="color:#aaa;font-size:10px">' + p.type.toUpperCase() + '</span>';
+        thumb = '<span style="color:#aaa;font-size:10px">REBLOG</span>';
       }
 
       var status = p.published !== false
@@ -220,21 +213,15 @@
     var isVideo = type === 'video';
     var isLink = type === 'link';
     var isReblog = type === 'reblog';
-    var isText = type === 'text';
-    var isQuote = type === 'quote';
-    var isAudio = type === 'audio';
 
     var html = '<div id="admin-form">' +
       '<div class="row"><div>' +
         '<label>Type</label>' +
         '<select id="af-type">' +
           '<option value="photo"' + (isPhoto ? ' selected' : '') + '>Photo</option>' +
-          '<option value="video"' + (isVideo ? ' selected' : '') + '>Video (YouTube)</option>' +
+          '<option value="video"' + (isVideo ? ' selected' : '') + '>Video</option>' +
           '<option value="link"' + (isLink ? ' selected' : '') + '>Link</option>' +
-          '<option value="reblog"' + (isReblog ? ' selected' : '') + '>Reblog (HTML)</option>' +
-          '<option value="text"' + (isText ? ' selected' : '') + '>Text Post</option>' +
-          '<option value="quote"' + (isQuote ? ' selected' : '') + '>Quote</option>' +
-          '<option value="audio"' + (isAudio ? ' selected' : '') + '>Audio</option>' +
+          '<option value="reblog"' + (isReblog ? ' selected' : '') + '>Reblog</option>' +
         '</select>' +
       '</div><div>' +
         '<label>Published</label>' +
@@ -251,7 +238,6 @@
         '<input id="af-order" type="number" value="' + (post.sortOrder || 0) + '" />' +
       '</div></div>';
 
-    // Photo fields
     if (isPhoto) {
       html += '<label>Image URL</label>' +
         '<input id="af-img" type="text" placeholder="https://..." value="' + escAttr(post.img || '') + '" />' +
@@ -264,7 +250,6 @@
         '</div></div>';
     }
 
-    // Video fields
     if (isVideo) {
       html += '<label>YouTube Embed URL</label>' +
         '<input id="af-src" type="text" placeholder="https://www.youtube.com/embed/..." value="' + escAttr(post.src || '') + '" />' +
@@ -272,7 +257,6 @@
         '<input id="af-vtitle" type="text" value="' + escAttr(post.title || '') + '" />';
     }
 
-    // Link fields
     if (isLink) {
       html += '<label>Link Title</label>' +
         '<input id="af-ltitle" type="text" value="' + escAttr(post.title || '') + '" />' +
@@ -280,60 +264,38 @@
         '<input id="af-lhref" type="text" placeholder="https://..." value="' + escAttr(post.href || '') + '" />';
     }
 
-    // Reblog/HTML fields
     if (isReblog) {
       html += '<label>HTML Content</label>' +
-        '<textarea id="af-html" placeholder="Paste HTML content here...">' + escHtml(post.html || '') + '</textarea>';
-    }
-
-    // Text post fields
-    if (isText) {
-      html += '<label>Post Title (optional)</label>' +
-        '<input id="af-text-title" type="text" placeholder="Title..." value="' + escAttr(post.title || '') + '" />' +
-        '<label>Body Text</label>' +
-        '<textarea id="af-text-body" placeholder="Write your post content here...">' + escHtml(post.body || '') + '</textarea>';
-    }
-
-    // Quote fields
-    if (isQuote) {
-      html += '<label>Quote Text</label>' +
-        '<textarea id="af-quote-text" placeholder="The quote...">' + escHtml(post.quoteText || '') + '</textarea>' +
-        '<label>Source (optional)</label>' +
-        '<input id="af-quote-source" type="text" placeholder="- Author Name" value="' + escAttr(post.source || '') + '" />';
-    }
-
-    // Audio fields
-    if (isAudio) {
-      html += '<label>Audio Embed URL (SoundCloud, etc.)</label>' +
-        '<input id="af-audio-url" type="text" placeholder="https://w.soundcloud.com/player/..." value="' + escAttr(post.audioUrl || '') + '" />' +
-        '<label>Track / Artist Info</label>' +
-        '<input id="af-audio-info" type="text" placeholder="Track name - Artist" value="' + escAttr(post.audioInfo || '') + '" />';
+        '<textarea id="af-html" placeholder="Paste reblog HTML here...">' + escHtml(post.html || '') + '</textarea>';
     }
 
     html += '<div class="actions">' +
-        '<button class="btn" id="af-save">Save Post</button> ' +
+        '<button class="btn" id="af-save">Save</button> ' +
         '<button class="btn btn-outline" id="af-cancel">Cancel</button>' +
       '</div></div>';
 
     wrap.innerHTML = html;
 
-    // Type change handler — re-render form with new type but keep data
+    // Type change handler
     wrap.querySelector('#af-type').addEventListener('change', function () {
+      // Re-render form with new type but keep id
       var tempPost = gatherFormData();
       tempPost._id = editingId;
       tempPost.type = this.value;
-      
+      // Temporarily save and re-show
       var allPosts = getPosts();
       if (!editingId) {
         allPosts.push(tempPost);
         savePosts(allPosts);
         showForm(tempPost._id);
+        // Remove the temp post since we're just editing
         allPosts = getPosts().filter(function (p) { return p._id !== tempPost._id; });
         savePosts(allPosts);
       } else {
         var idx = allPosts.findIndex(function (p) { return p._id === editingId; });
         if (idx >= 0) { allPosts[idx] = tempPost; savePosts(allPosts); }
         showForm(editingId);
+        // Restore original
         allPosts[idx] = post;
         savePosts(allPosts);
       }
@@ -371,18 +333,6 @@
         break;
       case 'reblog':
         data.html = document.getElementById('af-html').value;
-        break;
-      case 'text':
-        data.title = document.getElementById('af-text-title') ? document.getElementById('af-text-title').value : '';
-        data.body = document.getElementById('af-text-body') ? document.getElementById('af-text-body').value : '';
-        break;
-      case 'quote':
-        data.quoteText = document.getElementById('af-quote-text') ? document.getElementById('af-quote-text').value : '';
-        data.source = document.getElementById('af-quote-source') ? document.getElementById('af-quote-source').value : '';
-        break;
-      case 'audio':
-        data.audioUrl = document.getElementById('af-audio-url') ? document.getElementById('af-audio-url').value : '';
-        data.audioInfo = document.getElementById('af-audio-info') ? document.getElementById('af-audio-info').value : '';
         break;
     }
 
