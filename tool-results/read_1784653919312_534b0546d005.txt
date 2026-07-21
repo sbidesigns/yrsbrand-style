@@ -1,0 +1,721 @@
+     1→/**
+     2→ * ui.js — YRS Brand structure & template rendering
+     3→ * Reads SITE_DATA from site.js and builds the DOM.
+     4→ * Supports localStorage overrides (admin-managed posts).
+     5→ */
+     6→
+     7→(function () {
+     8→  'use strict';
+     9→
+    10→  /* ── Storage helpers ── */
+    11→  var POSTS_KEY = 'yrs_posts';
+    12→  var PER_PAGE = 10;
+    13→  var currentPage = 0;
+    14→
+    15→  function getStoredPosts() {
+    16→    try {
+    17→      var raw = localStorage.getItem(POSTS_KEY);
+    18→      if (raw) return JSON.parse(raw);
+    19→    } catch (e) { /* ignore */ }
+    20→    return null;
+    21→  }
+    22→
+    23→  function seedStorage() {
+    24→    if (!getStoredPosts()) {
+    25→      var posts = SITE_DATA.posts.map(function (p, i) {
+    26→        return Object.assign({}, p, { _id: 'seed_' + i, published: true, sortOrder: i });
+    27→      });
+    28→      localStorage.setItem(POSTS_KEY, JSON.stringify(posts));
+    29→    }
+    30→  }
+    31→
+    32→  function getAllPosts() {
+    33→    var stored = getStoredPosts();
+    34→    if (stored) return stored.filter(function (p) { return p.published !== false; });
+    35→    return SITE_DATA.posts;
+    36→  }
+    37→
+    38→  function getVisiblePosts() {
+    39→    var all = getAllPosts();
+    40→    return all.slice(0, (currentPage + 1) * PER_PAGE);
+    41→  }
+    42→
+    43→  function hasMorePosts() {
+    44→    return getVisiblePosts().length < getAllPosts().length;
+    45→  }
+    46→
+    47→  /* ── Init ──────────────────────────────────────────────────── */
+    48→
+    49→  function init() {
+    50→    seedStorage();
+    51→    var data = SITE_DATA;
+    52→    buildPage(data);
+    53→    hideLoader();
+    54→    initScrollEffects();
+    55→    initHashRouter();
+    56→  }
+    57→
+    58→  /* ── Page Builder ────────────────────────────────────────── */
+    59→
+    60→  function buildPage(data) {
+    61→    var center = document.getElementById('center');
+    62→    center.innerHTML = '';
+    63→
+    64→    center.appendChild(buildHeader(data));
+    65→    center.appendChild(buildSidebar(data));
+    66→
+    67→    var content = el('div', { id: 'content' });
+    68→    content.appendChild(buildHovers(data));
+    69→
+    70→    var container = el('div', { id: 'container' });
+    71→    getVisiblePosts().forEach(function (post, i) {
+    72→      container.appendChild(buildPost(post, i));
+    73→    });
+    74→    container.appendChild(el('div', { className: 'clear' }));
+    75→    content.appendChild(container);
+    76→
+    77→    // Global click interceptor for photo posts — prevents link navigation, uses hash instead
+    78→    container.addEventListener('click', function (e) {
+    79→      var postEl = e.target.closest('.post.photo');
+    80→      if (!postEl) return;
+    81→      // Don't intercept reblog clicks
+    82→      if (e.target.closest('.reblog a') || e.target.closest('.reblog')) return;
+    83→      // Don't intercept if click is explicitly on an external link with target="_blank"
+    84→      var link = e.target.closest('a[href]');
+    85→      if (link && (link.target === '_blank' || link.getAttribute('target') === '_blank')) return;
+    86→      
+    87→      e.preventDefault();
+    88→      e.stopPropagation();
+    89→      e.stopImmediatePropagation();
+    90→      
+    91→      var idx = postEl.getAttribute('data-post-index');
+    92→      if (idx !== null) {
+    93→        window.location.hash = '#post/' + idx;
+    94→      }
+    95→      return false;
+    96→    }, true); // capture phase
+    97→
+    98→    var loadBox = el('div', { id: 'load_box' });
+    99→    var loadA = el('a', { href: '#', id: 'load' }, 'Load next page');
+   100→    loadA.addEventListener('click', function (e) {
+   101→      e.preventDefault();
+   102→      loadNextPage(container);
+   103→    });
+   104→    loadBox.appendChild(loadA);
+   105→    if (!hasMorePosts()) loadBox.style.display = 'none';
+   106→    content.appendChild(loadBox);
+   107→
+   108→    var credit = el('div', { id: 'yrs_credit' });
+   109→    credit.innerHTML = data.footer;
+   110→    content.appendChild(credit);
+   111→
+   112→    center.appendChild(content);
+   113→    attachPanelListeners(content);
+   114→
+   115→    setTimeout(masonryLayout, 50);
+   116→  }
+   117→
+   118→  function loadNextPage(container) {
+   119→    currentPage++;
+   120→    var existing = container.querySelectorAll('.post');
+   121→    var startIdx = existing.length;
+   122→    var all = getAllPosts();
+   123→    var newPosts = all.slice(startIdx, (currentPage + 1) * PER_PAGE);
+   124→    if (newPosts.length === 0) return;
+   125→    newPosts.forEach(function (post, i) {
+   126→      container.insertBefore(buildPost(post, startIdx + i), container.querySelector('.clear'));
+   127→    });
+   128→    var loadBox = document.getElementById('load_box');
+   129→    if (loadBox && !hasMorePosts()) loadBox.style.display = 'none';
+   130→    setTimeout(masonryLayout, 50);
+   131→  }
+   132→
+   133→  function rebuildPage() {
+   134→    currentPage = 0;
+   135→    seedStorage();
+   136→    buildPage(SITE_DATA);
+   137→  }
+   138→
+   139→  /* ── Header ──────────────────────────────────────────────── */
+   140→
+   141→  function buildHeader(data) {
+   142→    var header = el('div', { id: 'header' });
+   143→
+   144→    var titleLink = el('a', { href: '/', title: 'Home' });
+   145→    var h1 = el('h1', {}, data.brand);
+   146→    titleLink.appendChild(h1);
+   147→    header.appendChild(titleLink);
+   148→
+   149→    var linksDiv = el('div', { className: 'links' });
+   150→    var centerWrap = el('center');
+   151→
+   152→    var aboutA = el('a', { href: '#description', className: 'description' });
+   153→    aboutA.textContent = 'About';
+   154→    centerWrap.appendChild(aboutA);
+   155→
+   156→    data.links.forEach(function (l) {
+   157→      var a = el('a', { href: l.href, title: l.title });
+   158→      if (l.external) a.target = '_top';
+   159→      if (l.panel) a.setAttribute('data-panel', l.panel);
+   160→      a.textContent = l.label;
+   161→      centerWrap.appendChild(a);
+   162→    });
+   163→
+   164→    // SVG social icons row
+   165→    var socialWrap = el('div', { className: 'social-row' });
+   166→    data.social.forEach(function (s, i) {
+   167→      var iconA = el('a', { href: s.href, target: '_blank', title: s.label, 'aria-label': s.label });
+   168→      iconA.innerHTML = s.svg;
+   169→      socialWrap.appendChild(iconA);
+   170→      if (i < data.social.length - 1) {
+   171→        socialWrap.appendChild(el('span', { className: 'social-spacer' }));
+   172→      }
+   173→    });
+   174→    centerWrap.appendChild(socialWrap);
+   175→
+   176→    linksDiv.appendChild(centerWrap);
+   177→    header.appendChild(linksDiv);
+   178→    header.appendChild(el('div', { className: 'clear' }));
+   179→
+   180→    return header;
+   181→  }
+   182→
+   183→  /* ── Sidebar ─────────────────────────────────────────────── */
+   184→
+   185→  function buildSidebar(data) {
+   186→    var sidebar = el('div', { id: 'sidebar' });
+   187→
+   188→    var titleLink = el('a', { href: '/', title: 'Home' });
+   189→    titleLink.appendChild(el('h1', {}, data.brand));
+   190→    sidebar.appendChild(titleLink);
+   191→
+   192→    var desc = el('div', { className: 'description' });
+   193→    desc.innerHTML = data.description;
+   194→    sidebar.appendChild(desc);
+   195→
+   196→    var linksDiv = el('div', { className: 'links' });
+   197→    data.links.forEach(function (l) {
+   198→      var a = el('a', { href: l.href, title: l.title });
+   199→      if (l.external) a.target = '_top';
+   200→      a.textContent = l.label;
+   201→      linksDiv.appendChild(a);
+   202→    });
+   203→    sidebar.appendChild(linksDiv);
+   204→
+   205→    var goUp = el('div', { id: 'go_up' });
+   206→    goUp.appendChild(el('a', { href: '#home', id: 'up' }, 'Go up'));
+   207→    sidebar.appendChild(goUp);
+   208→
+   209→    return sidebar;
+   210→  }
+   211→
+   212→  /* ── Hovers (panels) ─────────────────────────────────────── */
+   213→
+   214→  function buildHovers(data) {
+   215→    var hovers = el('div', { id: 'hovers' });
+   216→
+   217→    var descBox = el('div', { id: 'description_box' });
+   218→    descBox.innerHTML = data.description;
+   219→    hovers.appendChild(descBox);
+   220→
+   221→    // Connect panel
+   222→    var connectBox = el('div', { id: 'connect_box' });
+   223→    var connectTitle = el('div', { style: 'font-weight:bold;text-transform:uppercase;font-size:11px;margin-bottom:15px;padding-bottom:11px;border-bottom:1px dotted rgba(0,0,0,0.1)' });
+   224→    connectTitle.textContent = 'Connect';
+   225→    connectBox.appendChild(connectTitle);
+   226→    if (data.connectInfo) {
+   227→      var infoP = el('p', { style: 'margin:0 0 15px;line-height:1.6' });
+   228→      infoP.innerHTML = data.connectInfo;
+   229→      connectBox.appendChild(infoP);
+   230→    }
+   231→    data.social.forEach(function (s) {
+   232→      var row = el('div', { style: 'padding:8px 0;border-top:1px dotted rgba(0,0,0,0.1)' });
+   233→      var a = el('a', { href: s.href, target: '_blank', style: 'font-weight:bold;text-transform:uppercase;display:inline-flex;align-items:center;gap:8px;text-decoration:none;color:#000' });
+   234→      a.innerHTML = s.svg.replace('width="16" height="16"', 'width="14" height="14"') + ' ' + s.label;
+   235→      row.appendChild(a);
+   236→      connectBox.appendChild(row);
+   237→    });
+   238→    hovers.appendChild(connectBox);
+   239→
+   240→    var blogroll = el('div', { id: 'blogroll_box' });
+   241→    blogroll.appendChild(el('ul'));
+   242→    hovers.appendChild(blogroll);
+   243→
+   244→    hovers.appendChild(el('div', { id: 'twitter_box' }));
+   245→    hovers.appendChild(el('div', { id: 'close' }, 'Close'));
+   246→
+   247→    return hovers;
+   248→  }
+   249→
+   250→  /* ── Post Builder ────────────────────────────────────────── */
+   251→
+   252→  function buildPost(post, index) {
+   253→    var idx = (index !== undefined) ? index : getAllPosts().indexOf(post);
+   254→    var div = el('div', { className: 'post' + (post.type === 'photo' ? ' photo' : '') });
+   255→    div.setAttribute('data-post-index', String(idx));
+   256→
+   257→    switch (post.type) {
+   258→      case 'photo': div.appendChild(buildPhotoPost(post, idx)); break;
+   259→      case 'video': div.appendChild(buildVideoPost(post)); break;
+   260→      case 'link':  div.appendChild(buildLinkPost(post));  break;
+   261→      case 'reblog': div.innerHTML = post.html; break;
+   262→    }
+   263→
+   264→    var perma = el('div', { id: 'post_perma' + (post.type === 'photo' ? ' invisible' : '') });
+   265→    perma.appendChild(el('a', { href: post.url || '#', className: 'd' }, post.date || ''));
+   266→    perma.appendChild(el('a', { href: post.url || '#', className: 't' }, post.timeAgo || ''));
+   267→    div.appendChild(perma);
+   268→
+   269→    return div;
+   270→  }
+   271→
+   272→  function buildPhotoPost(post, index) {
+   273→    var photo = el('div', { id: 'photo' });
+   274→    var picture = el('div', { id: 'picture' });
+   275→
+   276→    var info = el('div', { id: 'info' });
+   277→    var holder = el('div', { id: 'holder' });
+   278→
+   279→    var note = el('div', { className: 'note' });
+   280→    var noteSpan = el('span', {}, String(post.notes || 0));
+   281→    note.appendChild(noteSpan);
+   282→
+   283→    var floatDiv = el('div', { id: 'float' });
+   284→    var dateDiv = el('div', { className: 'date' });
+   285→    var dateSpan = el('span', {}, 'View More');
+   286→    dateDiv.appendChild(dateSpan);
+   287→    floatDiv.appendChild(dateDiv);
+   288→
+   289→    // "View More" text also opens detail
+   290→    dateSpan.style.cursor = 'pointer';
+   291→    dateSpan.addEventListener('click', function (e) {
+   292→      e.stopPropagation();
+   293→      e.preventDefault();
+   294→      window.location.hash = '#post/' + index;
+   295→    });
+   296→
+   297→    var reblogDiv = el('div', { className: 'reblog' }, 'repost');
+   298→    if (post.reblogUrl) {
+   299→      var reblogA = el('a', { href: post.reblogUrl, target: '_blank', rel: 'noopener noreferrer', style: 'color:white;text-decoration:none;' });
+   300→      reblogA.appendChild(reblogDiv);
+   301→      floatDiv.appendChild(reblogA);
+   302→    } else {
+   303→      floatDiv.appendChild(reblogDiv);
+   304→    }
+   305→
+   306→    holder.appendChild(note);
+   307→    holder.appendChild(floatDiv);
+   308→    info.appendChild(holder);
+   309→    picture.appendChild(info);
+   310→
+   311→    var img = document.createElement('img');
+   312→    img.src = post.img;
+   313→    img.alt = 'YRS Brand';
+   314→    img.style.cursor = 'pointer';
+   315→    picture.appendChild(img);
+   316→
+   317→    photo.appendChild(picture);
+   318→
+   319→    // Click to open post detail — prevent any link navigation inside photo
+   320→    function openDetail(e) {
+   321→      // Don't intercept if clicking reblog link
+   322→      if (e.target.closest('.reblog a')) return;
+   323→      if (e.target.closest('.reblog')) return;
+   324→      e.preventDefault();
+   325→      e.stopPropagation();
+   326→      e.stopImmediatePropagation();
+   327→      window.location.hash = '#post/' + index;
+   328→      return false;
+   329→    }
+   330→
+   331→    photo.style.cursor = 'pointer';
+   332→    photo.addEventListener('click', openDetail, true); // capture phase
+   333→    img.addEventListener('click', openDetail, true); // capture phase
+   334→    
+   335→    // Also prevent default on any <a> inside photo that isn't reblog
+   336→    photo.querySelectorAll('a:not(.reblog a)').forEach(function(a) {
+   337→      a.addEventListener('click', function(e) {
+   338→        e.preventDefault();
+   339→        openDetail(e);
+   340→      });
+   341→    });
+   342→
+   343→    return photo;
+   344→  }
+   345→
+   346→  function buildVideoPost(post) {
+   347→    var wrapper = el('div', { className: 'video' });
+   348→    var iframe = document.createElement('iframe');
+   349→    iframe.width = '300'; iframe.height = '200';
+   350→    iframe.src = post.src;
+   351→    iframe.frameBorder = '0';
+   352→    iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
+   353→    iframe.setAttribute('allowfullscreen', '');
+   354→    iframe.title = post.title || 'YRS Video';
+   355→    wrapper.appendChild(iframe);
+   356→    return wrapper;
+   357→  }
+   358→
+   359→  function buildLinkPost(post) {
+   360→    var a = el('a', { href: post.href, className: 'link' });
+   361→    a.appendChild(el('h3', {}, post.title));
+   362→    return a;
+   363→  }
+   364→
+   365→  /* ── Share Bar Builder ────────────────────────────────────── */
+   366→
+   367→  var SHARE_SVGS = {
+   368→    facebook: '<svg viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>',
+   369→    twitter: '<svg viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>',
+   370→    pinterest: '<svg viewBox="0 0 24 24"><path d="M12.017 0C5.396 0 .029 5.367.029 11.987c0 5.079 3.158 9.417 7.618 11.162-.105-.949-.199-2.403.041-3.439.219-.937 1.406-5.957 1.406-5.957s-.359-.72-.359-1.781c0-1.668.967-2.914 2.171-2.914 1.023 0 1.518.769 1.518 1.69 0 1.029-.655 2.568-.994 3.995-.283 1.194.599 2.169 1.777 2.169 2.133 0 3.772-2.249 3.772-5.495 0-2.873-2.064-4.882-5.012-4.882-3.414 0-5.418 2.561-5.418 5.207 0 1.031.397 2.138.893 2.738a.36.36 0 01.083.343c-.091.378-.294 1.189-.334 1.355-.053.218-.173.265-.4.159-1.492-.694-2.424-2.875-2.424-4.627 0-3.769 2.737-7.229 7.892-7.229 4.144 0 7.365 2.953 7.365 6.899 0 4.117-2.595 7.431-6.199 7.431-1.211 0-2.348-.63-2.738-1.373 0 0-.598 2.28-.744 2.84-.269 1.029-1 2.319-1.492 3.106 1.125.347 2.322.532 3.561.532 6.627 0 11.988-5.367 11.988-11.988C24.005 5.367 18.644 0 12.017 0z"/></svg>',
+   371→    reddit: '<svg viewBox="0 0 24 24"><path d="M12 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0zm5.01 4.744c.688 0 1.25.561 1.25 1.249a1.25 1.25 0 0 1-2.498.056l-2.597-.547-.8 3.747c1.824.07 3.48.632 4.674 1.488.308-.309.73-.491 1.207-.491.968 0 1.754.786 1.754 1.754 0 .716-.435 1.333-1.01 1.614a3.111 3.111 0 0 1 .042.52c0 2.694-3.13 4.87-7.004 4.87-3.874 0-7.004-2.176-7.004-4.87 0-.183.015-.366.043-.534A1.748 1.748 0 0 1 4.028 12c0-.968.786-1.754 1.754-1.754.463 0 .898.196 1.207.49 1.207-.883 2.878-1.43 4.744-1.487l.885-4.182a.342.342 0 0 1 .14-.197.35.35 0 0 1 .238-.042l2.906.617a1.214 1.214 0 0 1 1.108-.701zM9.25 12C8.561 12 8 12.562 8 13.25c0 .687.561 1.248 1.25 1.248.687 0 1.248-.561 1.248-1.249 0-.688-.561-1.249-1.249-1.249zm5.5 0c-.687 0-1.248.561-1.248 1.25 0 .687.561 1.248 1.249 1.248.688 0 1.249-.561 1.249-1.249 0-.687-.562-1.249-1.25-1.249zm-5.466 3.99a.327.327 0 0 0-.231.094.33.33 0 0 0 0 .463c.842.842 2.484.913 2.961.913.477 0 2.105-.056 2.961-.913a.361.361 0 0 0 .029-.463.33.33 0 0 0-.464 0c-.547.533-1.684.73-2.512.73-.828 0-1.979-.196-2.512-.73a.326.326 0 0 0-.232-.095z"/></svg>',
+   372→    tumblr: '<svg viewBox="0 0 24 24"><path d="M14.563 24c-5.093 0-7.031-3.756-7.031-6.411V9.797H5.625V7.125c2.972-.98 3.716-3.42 3.891-6.048.007-.222.187-.405.41-.405h2.803v5.906h3.844v3.219h-3.844v7.188c0 .94.356 1.579 1.454 1.579h2.391V24h-2.511z"/></svg>',
+   373→    email: '<svg viewBox="0 0 24 24"><path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>',
+   374→    copy: '<svg viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>',
+   375→    check: '<svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>'
+   376→  };
+   377→
+   378→  function buildShareBar(post) {
+   379→    var url = post.url || window.location.href;
+   380→    var title = 'YRS Brand';
+   381→    var desc = post.date ? 'Posted on ' + post.date : '';
+   382→    var img = post.img || '';
+   383→
+   384→    var bar = el('div', { className: 'share-bar' });
+   385→
+   386→    // Label
+   387→    bar.appendChild(el('span', { className: 'share-bar-label' }, 'Share'));
+   388→
+   389→    // Facebook
+   390→    var fbBtn = el('a', { className: 'share-btn facebook', href: 'https://www.facebook.com/sharer/sharer.php?u=' + encodeURIComponent(url), target: '_blank', rel: 'noopener noreferrer', title: 'Share on Facebook' });
+   391→    fbBtn.innerHTML = SHARE_SVGS.facebook + ' Share';
+   392→    bar.appendChild(fbBtn);
+   393→
+   394→    // Twitter / X
+   395→    var twBtn = el('a', { className: 'share-btn twitter', href: 'https://twitter.com/intent/tweet?url=' + encodeURIComponent(url) + '&text=' + encodeURIComponent(title) + (img ? '&via=yrsbrand' : ''), target: '_blank', rel: 'noopener noreferrer', title: 'Post on X' });
+   396→    twBtn.innerHTML = SHARE_SVGS.twitter + ' Post';
+   397→    bar.appendChild(twBtn);
+   398→
+   399→    // Pinterest
+   400→    if (img) {
+   401→      var piBtn = el('a', { className: 'share-btn pinterest', href: 'https://pinterest.com/pin/create/button/?url=' + encodeURIComponent(url) + '&media=' + encodeURIComponent(img) + '&description=' + encodeURIComponent(desc), target: '_blank', rel: 'noopener noreferrer', title: 'Pin it' });
+   402→      piBtn.innerHTML = SHARE_SVGS.pinterest + ' Pin';
+   403→      bar.appendChild(piBtn);
+   404→    }
+   405→
+   406→    // Reddit
+   407→    var rdBtn = el('a', { className: 'share-btn reddit', href: 'https://reddit.com/submit?url=' + encodeURIComponent(url) + '&title=' + encodeURIComponent(title), target: '_blank', rel: 'noopener noreferrer', title: 'Submit to Reddit' });
+   408→    rdBtn.innerHTML = SHARE_SVGS.reddit + ' Submit';
+   409→    bar.appendChild(rdBtn);
+   410→
+   411→    // Tumblr
+   412→    if (post.reblogUrl) {
+   413→      var tbBtn = el('a', { className: 'share-btn tumblr', href: post.reblogUrl, target: '_blank', rel: 'noopener noreferrer', title: 'Reblog on Tumblr' });
+   414→      tbBtn.innerHTML = SHARE_SVGS.tumblr + ' Reblog';
+   415→      bar.appendChild(tbBtn);
+   416→    }
+   417→
+   418→    // Email
+   419→    var emBtn = el('a', { className: 'share-btn email', href: 'mailto:?subject=' + encodeURIComponent(title) + '&body=' + encodeURIComponent(desc + '\n\n' + url), title: 'Share via Email' });
+   420→    emBtn.innerHTML = SHARE_SVGS.email + ' Email';
+   421→    bar.appendChild(emBtn);
+   422→
+   423→    // Copy Link wrapper
+   424→    var copyWrap = el('div', { className: 'copy-link-wrapper' });
+   425→    var input = el('input', { className: 'copy-link-input', type: 'text', readonly: 'readonly', value: url });
+   426→    var copyBtn = el('button', { className: 'copy-link-btn', type: 'button', title: 'Copy link' });
+   427→    copyBtn.innerHTML = '<span class="copy-text">' + SHARE_SVGS.copy + ' Copy</span>';
+   428→    copyWrap.appendChild(input);
+   429→    copyWrap.appendChild(copyBtn);
+   430→    bar.appendChild(copyWrap);
+   431→
+   432→    // Copy click handler
+   433→    copyBtn.addEventListener('click', function () {
+   434→      input.select();
+   435→      input.setSelectionRange(0, 99999); // mobile support
+   436→      try {
+   437→        document.execCommand('copy');
+   438→        // Visual feedback
+   439→        copyBtn.classList.add('copied');
+   440→        copyBtn.innerHTML = SHARE_SVGS.check + ' Copied!';
+   441→        setTimeout(function () {
+   442→          copyBtn.classList.remove('copied');
+   443→          copyBtn.innerHTML = '<span class="copy-text">' + SHARE_SVGS.copy + ' Copy</span>';
+   444→        }, 2200);
+   445→      } catch (e) {
+   446→        // Fallback for older browsers
+   447→        var temp = document.createElement('textarea');
+   448→        temp.value = url;
+   449→        temp.style.position = 'fixed';
+   450→        temp.style.left = '-9999px';
+   451→        document.body.appendChild(temp);
+   452→        temp.select();
+   453→        try { document.execCommand('copy'); } catch (e2) { /* ignore */ }
+   454→        document.body.removeChild(temp);
+   455→        copyBtn.classList.add('copied');
+   456→        copyBtn.innerHTML = SHARE_SVGS.check + ' Copied!';
+   457→        setTimeout(function () {
+   458→          copyBtn.classList.remove('copied');
+   459→          copyBtn.innerHTML = '<span class="copy-text">' + SHARE_SVGS.copy + ' Copy</span>';
+   460→        }, 2200);
+   461→      }
+   462→    });
+   463→
+   464→    return bar;
+   465→  }
+   466→
+   467→  /* ── Hash Router (post detail) ───────────────────────────── */
+   468→
+   469→  function initHashRouter() {
+   470→    function onHash() {
+   471→      var hash = window.location.hash;
+   472→      var match = hash.match(/^#post\/(\d+)$/);
+   473→      if (match) {
+   474→        showPostDetail(parseInt(match[1], 10));
+   475→      } else if (hash === '#description') {
+   476→        closePostDetail();
+   477→        var aboutBtn = document.querySelector('#header .description');
+   478→        if (aboutBtn) aboutBtn.click();
+   479→      } else {
+   480→        closePostDetail();
+   481→      }
+   482→    }
+   483→    window.addEventListener('hashchange', onHash);
+   484→    onHash();
+   485→  }
+   486→
+   487→  function showPostDetail(index) {
+   488→    var allPosts = getAllPosts();
+   489→    var post = allPosts[index];
+   490→    if (!post) return;
+   491→
+   492→    // Hide main content
+   493→    hide('#container, #load_box, #page_navigation_if_header, #yrs_credit');
+   494→
+   495→    // Build detail panel inside #hovers
+   496→    var hovers = document.getElementById('hovers');
+   497→    if (!hovers) return;
+   498→
+   499→    // Remove existing detail
+   500→    var old = document.getElementById('post_detail_box');
+   501→    if (old) old.remove();
+   502→
+   503→    // Hide other panels
+   504→    hide('#description_box, #connect_box, #blogroll_box, #twitter_box');
+   505→    
+   506→    // Make hovers full-width for post detail (override panel styling)
+   507→    var hoversEl = document.getElementById('hovers');
+   508→    if (hoversEl) {
+   509→      hoversEl.style.cssText = 'display:block!important;position:static;width:100%;min-height:100vh;background:#fff;padding:0;';
+   510→    }
+   511→    show('#hovers');
+   512→
+   513→    var detail = el('div', { id: 'post_detail_box' });
+   514→
+   515→    // Back link (top-right, matches original close button style)
+   516→    var backLink = el('a', { href: '#', style: 'cursor:pointer;font-weight:bold;height:9px;padding:11px;position:absolute;right:0;text-transform:uppercase;top:0;border-top:1px dotted rgba(0,0,0,0.1);' });
+   517→    backLink.innerHTML = '&larr; Back';
+   518→    backLink.addEventListener('click', function (e) {
+   519→      e.preventDefault();
+   520→      window.location.hash = '#';
+   521→    });
+   522→    detail.appendChild(backLink);
+   523→
+   524→    // Post wrapper — mirrors the original .post in #container but at 500px
+   525→    var postDiv = el('div', { className: 'post' + (post.type === 'photo' ? ' photo' : ''), style: 'width:500px;margin:30px auto 0;position:relative;float:none;' });
+   526→
+   527→    // Content by type
+   528→    switch (post.type) {
+   529→      case 'photo': {
+   530→        // Full-width photo at 500px, no hover overlay on permalink
+   531→        var img = document.createElement('img');
+   532→        img.src = post.img;
+   533→        img.alt = 'YRS Brand';
+   534→        img.style.width = '500px';
+   535→        img.style.height = 'auto';
+   536→        img.style.display = 'block';
+   537→        postDiv.appendChild(img);
+   538→        break;
+   539→      }
+   540→      case 'video': {
+   541→        var wrapper = el('div', { className: 'video' });
+   542→        var iframe = document.createElement('iframe');
+   543→        iframe.width = '500'; iframe.height = '281';
+   544→        iframe.src = post.src;
+   545→        iframe.frameBorder = '0';
+   546→        iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
+   547→        iframe.setAttribute('allowfullscreen', '');
+   548→        iframe.title = post.title || 'YRS Video';
+   549→        wrapper.appendChild(iframe);
+   550→        postDiv.appendChild(wrapper);
+   551→        break;
+   552→      }
+   553→      case 'link': {
+   554→        var linkA = el('a', { href: post.href, target: '_blank', className: 'link' });
+   555→        linkA.appendChild(el('h3', {}, post.title));
+   556→        postDiv.appendChild(linkA);
+   557→        break;
+   558→      }
+   559→      case 'reblog': {
+   560→        postDiv.innerHTML = post.html;
+   561→        break;
+   562→      }
+   563→    }
+   564→
+   565→    // Permalink footer — same style as grid posts
+   566→    var perma = el('div', { id: 'post_perma' });
+   567→    var permaA = el('a', { href: post.url || '#', className: 'd' }, post.date || '');
+   568→    var permaB = el('a', { href: post.url || '#', className: 't' }, post.timeAgo || '');
+   569→    perma.appendChild(permaA);
+   570→    perma.appendChild(permaB);
+   571→    postDiv.appendChild(perma);
+   572→
+   573→    detail.appendChild(postDiv);
+   574→
+   575→    // Share Bar — professional multi-platform share + copy link
+   576→    detail.appendChild(buildShareBar(post));
+   577→
+   578→    // Notes section (avatar grid style, matching original ol.notes)
+   579→    if (post.notes && post.notes > 0) {
+   580→      var notesWrap = el('div', { style: 'width:500px;margin:0 auto 30px;overflow:hidden;padding:22px 11px 0;border-top:1px dotted rgba(0,0,0,0.1);' });
+   581→      var notesLabel = el('div', { style: 'font-size:10px;font-weight:bold;line-height:20px;margin-bottom:15px;text-transform:uppercase;' });
+   582→      notesLabel.textContent = post.notes + ' notes';
+   583→      notesWrap.appendChild(notesLabel);
+   584→      // Placeholder note avatars — self-contained SVG data URI (no external dependency)
+   585→      var avatarGrid = el('ol', { className: 'notes' });
+   586→      // Self-contained 16x16 avatar as data URI (YRS "Y" monogram)
+   587→      var avatarDataUri = 'data:image/svg+xml,' + encodeURIComponent(
+   588→        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16">' +
+   589→        '<rect width="16" height="16" rx="2" fill="#000000"/>' +
+   590→        '<text x="8" y="12.5" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#ffffff" text-anchor="middle">Y</text>' +
+   591→        '</svg>'
+   592→      );
+   593→      for (var n = 0; n < Math.min(post.notes, 20); n++) {
+   594→        var li = el('li', { className: 'note' });
+   595→        var avatar = document.createElement('img');
+   596→        avatar.className = 'avatar';
+   597→        avatar.src = avatarDataUri;
+   598→        avatar.alt = 'YRS';
+   599→        li.appendChild(avatar);
+   600→        avatarGrid.appendChild(li);
+   601→      }
+   602→      notesWrap.appendChild(avatarGrid);
+   603→      detail.appendChild(notesWrap);
+   604→    }
+   605→
+   606→    hovers.appendChild(detail);
+   607→
+   608→    // Scroll to top so user sees the detail
+   609→    window.scrollTo(0, 0);
+   610→  }
+   611→
+   612→  function closePostDetail() {
+   613→    var detail = document.getElementById('post_detail_box');
+   614→    if (detail) detail.remove();
+   615→    // Reset hovers to original panel styling
+   616→    var hoversEl = document.getElementById('hovers');
+   617→    if (hoversEl) {
+   618→      hoversEl.style.cssText = '';
+   619→    }
+   620→    hide('#hovers');
+   621→    show('#container, #load_box, #yrs_credit');
+   622→    setTimeout(masonryLayout, 50);
+   623→  }
+   624→
+   625→  /* ── Panel toggle ────────────────────────────────────────── */
+   626→
+   627→  function attachPanelListeners(content) {
+   628→    var aboutBtn = content.querySelector('#header .description');
+   629→    var connectBtn = content.querySelector('#header a[data-panel="connect"]');
+   630→    var closeBtn = content.querySelector('#close');
+   631→    var goUpBtn = document.getElementById('up');
+   632→
+   633→    if (aboutBtn) {
+   634→      aboutBtn.addEventListener('click', function (e) {
+   635→        e.preventDefault();
+   636→        window.location.hash = '#description';
+   637→        closePostDetail();
+   638→        show('#description_box, #hovers');
+   639→        hide('#container, #load_box, #connect_box, #blogroll_box, #twitter_box, #post_detail_box');
+   640→      });
+   641→    }
+   642→
+   643→    if (connectBtn) {
+   644→      connectBtn.addEventListener('click', function (e) {
+   645→        e.preventDefault();
+   646→        closePostDetail();
+   647→        show('#connect_box, #hovers');
+   648→        hide('#container, #load_box, #description_box, #blogroll_box, #twitter_box, #post_detail_box');
+   649→      });
+   650→    }
+   651→
+   652→    if (closeBtn) {
+   653→      closeBtn.addEventListener('click', function () {
+   654→        window.location.hash = '#';
+   655→        hide('#hovers, #ask_box, #submit_box, #twitter_box, #blogroll_box, #disclaimer_box, #state_box, #karmaloop_box, #description_box, #connect_box, #post_detail_box');
+   656→        show('#container, #load_box, #page_navigation_if_header');
+   657→        setTimeout(masonryLayout, 50);
+   658→      });
+   659→    }
+   660→
+   661→    if (goUpBtn) {
+   662→      goUpBtn.addEventListener('click', function (e) {
+   663→        e.preventDefault();
+   664→        window.scrollTo({ top: 0, behavior: 'smooth' });
+   665→      });
+   666→    }
+   667→  }
+   668→
+   669→  /* ── Scroll ──────────────────────────────────────────────── */
+   670→
+   671→  function initScrollEffects() {
+   672→    var goUp = document.getElementById('go_up');
+   673→    if (!goUp) return;
+   674→    window.addEventListener('scroll', function () {
+   675→      goUp.style.display = window.scrollY !== 0 ? 'block' : 'none';
+   676→    });
+   677→  }
+   678→
+   679→  /* ── Loader ──────────────────────────────────────────────── */
+   680→
+   681→  function hideLoader() {
+   682→    var loader = document.getElementById('site-loader');
+   683→    if (loader) {
+   684→      loader.classList.add('hidden');
+   685→      setTimeout(function () { loader.remove(); }, 600);
+   686→    }
+   687→  }
+   688→
+   689→  /* ── Helpers ─────────────────────────────────────────────── */
+   690→
+   691→  function el(tag, attrs, textOrChildren) {
+   692→    var e = document.createElement(tag);
+   693→    if (attrs) {
+   694→      Object.keys(attrs).forEach(function (k) {
+   695→        if (k === 'className') e.className = attrs[k];
+   696→        else if (k === 'style' && typeof attrs[k] === 'object') Object.assign(e.style, attrs[k]);
+   697→        else e.setAttribute(k, attrs[k]);
+   698→      });
+   699→    }
+   700→    if (Array.isArray(textOrChildren)) {
+   701→      textOrChildren.forEach(function (c) { e.appendChild(c); });
+   702→    } else if (textOrChildren !== undefined) {
+   703→      e.textContent = textOrChildren;
+   704→    }
+   705→    return e;
+   706→  }
+   707→
+   708→  function show(sel)  { document.querySelectorAll(sel).forEach(function (e) { e.style.display = ''; }); }
+   709→  function hide(sel)  { document.querySelectorAll(sel).forEach(function (e) { e.style.display = 'none'; }); }
+   710→
+   711→  /* ── Expose rebuild for admin.js ─────────────────────────── */
+   712→  window.YRS_UI = { rebuild: rebuildPage, getAllPosts: getAllPosts };
+   713→
+   714→  /* ── Boot ────────────────────────────────────────────────── */
+   715→  if (document.readyState === 'loading') {
+   716→    document.addEventListener('DOMContentLoaded', init);
+   717→  } else {
+   718→    init();
+   719→  }
+   720→})();
+   721→
