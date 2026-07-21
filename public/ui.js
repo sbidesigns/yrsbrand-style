@@ -74,6 +74,27 @@
     container.appendChild(el('div', { className: 'clear' }));
     content.appendChild(container);
 
+    // Global click interceptor for photo posts — prevents link navigation, uses hash instead
+    container.addEventListener('click', function (e) {
+      var postEl = e.target.closest('.post.photo');
+      if (!postEl) return;
+      // Don't intercept reblog clicks
+      if (e.target.closest('.reblog a') || e.target.closest('.reblog')) return;
+      // Don't intercept if click is explicitly on an external link with target="_blank"
+      var link = e.target.closest('a[href]');
+      if (link && (link.target === '_blank' || link.getAttribute('target') === '_blank')) return;
+      
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+      
+      var idx = postEl.getAttribute('data-post-index');
+      if (idx !== null) {
+        window.location.hash = '#post/' + idx;
+      }
+      return false;
+    }, true); // capture phase
+
     var loadBox = el('div', { id: 'load_box' });
     var loadA = el('a', { href: '#', id: 'load' }, 'Load next page');
     loadA.addEventListener('click', function (e) {
@@ -295,19 +316,29 @@
 
     photo.appendChild(picture);
 
-    // Click to open post detail — attached to both photo div and image
+    // Click to open post detail — prevent any link navigation inside photo
     function openDetail(e) {
       // Don't intercept if clicking reblog link
       if (e.target.closest('.reblog a')) return;
       if (e.target.closest('.reblog')) return;
       e.preventDefault();
       e.stopPropagation();
+      e.stopImmediatePropagation();
       window.location.hash = '#post/' + index;
+      return false;
     }
 
     photo.style.cursor = 'pointer';
-    photo.addEventListener('click', openDetail);
-    img.addEventListener('click', openDetail);
+    photo.addEventListener('click', openDetail, true); // capture phase
+    img.addEventListener('click', openDetail, true); // capture phase
+    
+    // Also prevent default on any <a> inside photo that isn't reblog
+    photo.querySelectorAll('a:not(.reblog a)').forEach(function(a) {
+      a.addEventListener('click', function(e) {
+        e.preventDefault();
+        openDetail(e);
+      });
+    });
 
     return photo;
   }
@@ -471,6 +502,12 @@
 
     // Hide other panels
     hide('#description_box, #connect_box, #blogroll_box, #twitter_box');
+    
+    // Make hovers full-width for post detail (override panel styling)
+    var hoversEl = document.getElementById('hovers');
+    if (hoversEl) {
+      hoversEl.style.cssText = 'display:block!important;position:static;width:100%;min-height:100vh;background:#fff;padding:0;';
+    }
     show('#hovers');
 
     var detail = el('div', { id: 'post_detail_box' });
@@ -575,6 +612,11 @@
   function closePostDetail() {
     var detail = document.getElementById('post_detail_box');
     if (detail) detail.remove();
+    // Reset hovers to original panel styling
+    var hoversEl = document.getElementById('hovers');
+    if (hoversEl) {
+      hoversEl.style.cssText = '';
+    }
     hide('#hovers');
     show('#container, #load_box, #yrs_credit');
     setTimeout(masonryLayout, 50);
