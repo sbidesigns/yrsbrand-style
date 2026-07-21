@@ -43,12 +43,12 @@
   </div>
   <div id="center"></div>
   <script>
-    /* ── Masonry Layout — text-align:center + inline-block centering ─── */
+    /* ── Masonry Layout — column-count for gap-fill + dynamic width for centering ─── */
     function masonryLayout() {
       var c = document.getElementById('container');
       if (!c) return;
 
-      /* Nuke ALL leftover inline styles from old masonry attempts */
+      /* Nuke ALL leftover inline styles from old attempts */
       var posts = c.querySelectorAll('.post');
       for (var i = 0; i < posts.length; i++) {
         posts[i].style.position = '';
@@ -58,28 +58,34 @@
         posts[i].style.margin = '';
         posts[i].style.width = '';
         posts[i].style.display = '';
+        posts[i].style.marginLeft = '';
       }
 
-      /* Reset container to clean slate */
+      /* Reset container completely */
       c.style.display = '';
       c.style.gridTemplateColumns = '';
       c.style.justifyContent = '';
       c.style.gap = '';
-      c.style.columnCount = '';
+      c.style.textAlign = '';
       c.style.paddingLeft = '';
       c.style.paddingRight = '';
 
-      /* THE FIX: text-align:center makes inline-block children center! */
-      c.style.textAlign = 'center';
+      /* Calculate columns based on viewport */
+      var viewportWidth = window.innerWidth;
+      var postWidth = 320;
+      var colGap = 30;
+      var colUnit = postWidth + colGap; /* 350px per column */
+      var cols = Math.max(1, Math.floor(viewportWidth / colUnit));
 
-      /* Force posts to inline-block so they respond to text-align */
-      for (var j = 0; j < posts.length; j++) {
-        posts[j].style.display = 'inline-block';
-        posts[j].style.verticalAlign = 'top';
-        posts[j].style.marginBottom = '30px';
-        /* Add horizontal margin for gap between posts */
-        if (j > 0) posts[j].style.marginLeft = '15px';
-      }
+      /* TRUE MASONRY: use CSS column-count — browser handles gap-filling natively */
+      c.style.columnCount = cols;
+      c.style.columnGap = colGap + 'px';
+
+      /* CENTERING: set container width to exact content width,
+         then margin:0 auto (from CSS) centers the whole block */
+      var contentWidth = (cols * postWidth) + ((cols - 1) * colGap);
+      c.style.width = contentWidth + 'px';
+      c.style.maxWidth = 'none'; /* override CSS max-width when < 3 cols */
     }
     window.addEventListener('resize', masonryLayout);
     window.addEventListener('load', function(){ setTimeout(masonryLayout,100); });
