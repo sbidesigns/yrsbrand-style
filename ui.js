@@ -83,11 +83,11 @@
       // Don't intercept if click is explicitly on an external link with target="_blank"
       var link = e.target.closest('a[href]');
       if (link && (link.target === '_blank' || link.getAttribute('target') === '_blank')) return;
-      
+
       e.preventDefault();
       e.stopPropagation();
       e.stopImmediatePropagation();
-      
+
       var idx = postEl.getAttribute('data-post-index');
       if (idx !== null) {
         window.location.hash = '#post/' + idx;
@@ -96,7 +96,7 @@
     }, true); // capture phase
 
     var loadBox = el('div', { id: 'load_box' });
-    var loadA = el('a', { href: '#', id: 'load' }, 'Load next page');
+    var loadA = el('a', { href: '#', id: 'load' }, 'Load new posts');
     loadA.addEventListener('click', function (e) {
       e.preventDefault();
       loadNextPage(container);
@@ -112,7 +112,9 @@
     center.appendChild(content);
     attachPanelListeners(content);
 
-    setTimeout(masonryLayout, 50);
+    // Initialize lazy loading after DOM is ready
+    setTimeout(initLazyLoad, 50);
+    setTimeout(masonryLayout, 100);
   }
 
   function loadNextPage(container) {
@@ -127,7 +129,9 @@
     });
     var loadBox = document.getElementById('load_box');
     if (loadBox && !hasMorePosts()) loadBox.style.display = 'none';
-    setTimeout(masonryLayout, 50);
+    // Re-init lazy load for new images
+    setTimeout(initLazyLoad, 50);
+    setTimeout(masonryLayout, 100);
   }
 
   function rebuildPage() {
@@ -147,21 +151,23 @@
     header.appendChild(titleLink);
 
     var linksDiv = el('div', { className: 'links' });
-    var centerWrap = el('center');
 
+    // Navigation links row
+    var navWrap = el('div', { style: 'display:flex;flex-wrap:wrap;justify-content:center;gap:0;' });
     var aboutA = el('a', { href: '#description', className: 'description' });
     aboutA.textContent = 'About';
-    centerWrap.appendChild(aboutA);
+    navWrap.appendChild(aboutA);
 
     data.links.forEach(function (l) {
       var a = el('a', { href: l.href, title: l.title });
       if (l.external) a.target = '_top';
       if (l.panel) a.setAttribute('data-panel', l.panel);
       a.textContent = l.label;
-      centerWrap.appendChild(a);
+      navWrap.appendChild(a);
     });
+    linksDiv.appendChild(navWrap);
 
-    // SVG social icons row
+    // Social icons row — BELOW navigation links
     var socialWrap = el('div', { className: 'social-row' });
     data.social.forEach(function (s, i) {
       var iconA = el('a', { href: s.href, target: '_blank', title: s.label, 'aria-label': s.label });
@@ -171,9 +177,8 @@
         socialWrap.appendChild(el('span', { className: 'social-spacer' }));
       }
     });
-    centerWrap.appendChild(socialWrap);
+    linksDiv.appendChild(socialWrap);
 
-    linksDiv.appendChild(centerWrap);
     header.appendChild(linksDiv);
     header.appendChild(el('div', { className: 'clear' }));
 
@@ -308,12 +313,23 @@
     info.appendChild(holder);
     picture.appendChild(info);
 
+    // PROPER LAZY LOADING: Image starts hidden, fades in when loaded
     var img = document.createElement('img');
     img.src = post.img;
     img.alt = 'YRS Brand';
     img.style.cursor = 'pointer';
-    picture.appendChild(img);
+    img.setAttribute('data-lazy', 'true');
 
+    // Fade in on load — prevents squish/expand visual glitch
+    img.addEventListener('load', function () {
+      this.classList.add('loaded');
+    });
+    // Handle cached/instant loads
+    if (img.complete) {
+      img.classList.add('loaded');
+    }
+
+    picture.appendChild(img);
     photo.appendChild(picture);
 
     // Click to open post detail — prevent any link navigation inside photo
@@ -331,7 +347,7 @@
     photo.style.cursor = 'pointer';
     photo.addEventListener('click', openDetail, true); // capture phase
     img.addEventListener('click', openDetail, true); // capture phase
-    
+
     // Also prevent default on any <a> inside photo that isn't reblog
     photo.querySelectorAll('a:not(.reblog a)').forEach(function(a) {
       a.addEventListener('click', function(e) {
@@ -360,6 +376,21 @@
     var a = el('a', { href: post.href, className: 'link' });
     a.appendChild(el('h3', {}, post.title));
     return a;
+  }
+
+  /* ── Lazy Load Initialization ─────────────────────────────── */
+
+  function initLazyLoad() {
+    var images = document.querySelectorAll('#container img[data-lazy="true"]');
+    images.forEach(function (img) {
+      if (img.complete) {
+        img.classList.add('loaded');
+      } else {
+        img.addEventListener('load', function () {
+          this.classList.add('loaded');
+        });
+      }
+    });
   }
 
   /* ── Share Bar Builder ────────────────────────────────────── */
@@ -410,7 +441,7 @@
 
     // Tumblr
     if (post.reblogUrl) {
-      var tbBtn = el('a', { className: 'share-btn tumblr', href: post.reblogUrl, target: '_blank', rel: 'noopener noreferrer', title: 'Reblog on Tumblr' });
+      var tbBtn = el('a', { className: 'share-btn tumblr', href: post.reblogUrl, target: '_blank', rel: 'noopener noreferrer', title: 'Reblog on YRS' });
       tbBtn.innerHTML = SHARE_SVGS.tumblr + ' Reblog';
       bar.appendChild(tbBtn);
     }
@@ -502,7 +533,7 @@
 
     // Hide other panels
     hide('#description_box, #connect_box, #blogroll_box, #twitter_box');
-    
+
     // Make hovers full-width for post detail (override panel styling)
     var hoversEl = document.getElementById('hovers');
     if (hoversEl) {
@@ -534,6 +565,7 @@
         img.style.width = '500px';
         img.style.height = 'auto';
         img.style.display = 'block';
+        img.classList.add('loaded'); // Already visible in detail view
         postDiv.appendChild(img);
         break;
       }
@@ -604,117 +636,112 @@
     }
 
     hovers.appendChild(detail);
-
-    // Scroll to top so user sees the detail
-    window.scrollTo(0, 0);
   }
 
   function closePostDetail() {
-    var detail = document.getElementById('post_detail_box');
-    if (detail) detail.remove();
-    // Reset hovers to original panel styling
+    var old = document.getElementById('post_detail_box');
+    if (old) old.remove();
+    show('#container, #load_box, #yrs_credit');
+    // Reset hovers styling
     var hoversEl = document.getElementById('hovers');
     if (hoversEl) {
-      hoversEl.style.cssText = '';
+      hoversEl.removeAttribute('style');
     }
     hide('#hovers');
-    show('#container, #load_box, #yrs_credit');
-    setTimeout(masonryLayout, 50);
+    setTimeout(masonryLayout, 100);
   }
 
-  /* ── Panel toggle ────────────────────────────────────────── */
-
-  function attachPanelListeners(content) {
-    var aboutBtn = content.querySelector('#header .description');
-    var connectBtn = content.querySelector('#header a[data-panel="connect"]');
-    var closeBtn = content.querySelector('#close');
-    var goUpBtn = document.getElementById('up');
-
-    if (aboutBtn) {
-      aboutBtn.addEventListener('click', function (e) {
-        e.preventDefault();
-        window.location.hash = '#description';
-        closePostDetail();
-        show('#description_box, #hovers');
-        hide('#container, #load_box, #connect_box, #blogroll_box, #twitter_box, #post_detail_box');
-      });
-    }
-
-    if (connectBtn) {
-      connectBtn.addEventListener('click', function (e) {
-        e.preventDefault();
-        closePostDetail();
-        show('#connect_box, #hovers');
-        hide('#container, #load_box, #description_box, #blogroll_box, #twitter_box, #post_detail_box');
-      });
-    }
-
-    if (closeBtn) {
-      closeBtn.addEventListener('click', function () {
-        window.location.hash = '#';
-        hide('#hovers, #ask_box, #submit_box, #twitter_box, #blogroll_box, #disclaimer_box, #state_box, #karmaloop_box, #description_box, #connect_box, #post_detail_box');
-        show('#container, #load_box, #page_navigation_if_header');
-        setTimeout(masonryLayout, 50);
-      });
-    }
-
-    if (goUpBtn) {
-      goUpBtn.addEventListener('click', function (e) {
-        e.preventDefault();
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-      });
-    }
-  }
-
-  /* ── Scroll ──────────────────────────────────────────────── */
+  /* ── Scroll Effects ──────────────────────────────────────── */
 
   function initScrollEffects() {
-    var goUp = document.getElementById('go_up');
-    if (!goUp) return;
+    var timer = null;
     window.addEventListener('scroll', function () {
-      goUp.style.display = window.scrollY !== 0 ? 'block' : 'none';
-    });
+      if (timer) return;
+      timer = setTimeout(function () {
+        masonryLayout();
+        timer = null;
+      }, 150);
+    }, { passive: true });
   }
 
-  /* ── Loader ──────────────────────────────────────────────── */
+  /* ── Panel Listeners ─────────────────────────────────────── */
+
+  function attachPanelListeners(content) {
+    // Description/About panel
+    var descBtn = content.querySelector('#header .description');
+    if (descBtn) {
+      descBtn.addEventListener('click', function (e) {
+        e.preventDefault();
+        show('#hovers'); show('#description_box');
+        hide('#connect_box, #blogroll_box, #twitter_box');
+      });
+    }
+
+    // Connect panel
+    var connectLinks = content.querySelectorAll('[data-panel="connect"]');
+    connectLinks.forEach(function (link) {
+      link.addEventListener('click', function (e) {
+        e.preventDefault();
+        show('#hovers'); show('#connect_box');
+        hide('#description_box, #blogroll_box, #twitter_box');
+      });
+    });
+
+    // Close button
+    var closeBtn = document.getElementById('close');
+    if (closeBtn) {
+      closeBtn.addEventListener('click', function () {
+        hide('#hovers');
+      });
+    }
+  }
+
+  /* ── Helpers ──────────────────────────────────────────────── */
+
+  function el(tag, attrs, text) {
+    var elem = document.createElement(tag);
+    if (attrs) Object.keys(attrs).forEach(function (k) { elem.setAttribute(k, attrs[k]); });
+    if (text) elem.textContent = text;
+    return elem;
+  }
+
+  function hide(selector) {
+    var nodes = document.querySelectorAll(selector);
+    nodes.forEach(function (n) { n.style.display = 'none'; });
+  }
+
+  function show(selector) {
+    var nodes = document.querySelectorAll(selector);
+    nodes.forEach(function (n) { n.style.display = ''; });
+  }
+
+  /* ── Loader ───────────────────────────────────────────────── */
 
   function hideLoader() {
     var loader = document.getElementById('site-loader');
     if (loader) {
-      loader.classList.add('hidden');
-      setTimeout(function () { loader.remove(); }, 600);
+      setTimeout(function () {
+        loader.classList.add('hidden');
+        setTimeout(function () { loader.remove(); }, 600);
+      }, 300);
     }
   }
 
-  /* ── Helpers ─────────────────────────────────────────────── */
+  /* ── Expose public API for admin.js ───────────────────────── */
 
-  function el(tag, attrs, textOrChildren) {
-    var e = document.createElement(tag);
-    if (attrs) {
-      Object.keys(attrs).forEach(function (k) {
-        if (k === 'className') e.className = attrs[k];
-        else if (k === 'style' && typeof attrs[k] === 'object') Object.assign(e.style, attrs[k]);
-        else e.setAttribute(k, attrs[k]);
-      });
+  window.YRS_UI = {
+    rebuild: rebuildPage,
+    refresh: function () {
+      rebuildPage();
     }
-    if (Array.isArray(textOrChildren)) {
-      textOrChildren.forEach(function (c) { e.appendChild(c); });
-    } else if (textOrChildren !== undefined) {
-      e.textContent = textOrChildren;
-    }
-    return e;
-  }
+  };
 
-  function show(sel)  { document.querySelectorAll(sel).forEach(function (e) { e.style.display = ''; }); }
-  function hide(sel)  { document.querySelectorAll(sel).forEach(function (e) { e.style.display = 'none'; }); }
+  /* ── Boot ─────────────────────────────────────────────────── */
 
-  /* ── Expose rebuild for admin.js ─────────────────────────── */
-  window.YRS_UI = { rebuild: rebuildPage, getAllPosts: getAllPosts };
-
-  /* ── Boot ────────────────────────────────────────────────── */
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
   } else {
     init();
   }
+
 })();
