@@ -161,18 +161,18 @@
       centerWrap.appendChild(a);
     });
 
-    // Navigation links first
+    // Navigation links
     linksDiv.appendChild(centerWrap);
+    header.appendChild(linksDiv);
     
-    // Social icons on their own row below links
+    // Social icons row — outside of .links div
     var socialWrap = el('div', { className: 'social-row' });
     data.social.forEach(function (s) {
       var iconA = el('a', { href: s.href, target: '_blank', title: s.label, 'aria-label': s.label });
       iconA.innerHTML = s.svg;
       socialWrap.appendChild(iconA);
     });
-    linksDiv.appendChild(socialWrap);
-    header.appendChild(linksDiv);
+    header.appendChild(socialWrap);
     header.appendChild(el('div', { className: 'clear' }));
 
     return header;
