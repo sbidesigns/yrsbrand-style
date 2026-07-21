@@ -156,23 +156,30 @@
 
   /* ── Table ───────────────────────────────────────────────── */
 
+  var _dragSrcId = null;   // ID of row being dragged
+  var _dragSrcEl = null;   // DOM element being dragged
+
   function renderAdminTable() {
     var wrap = document.getElementById('admin-table-wrap');
     if (!wrap) return;
     var posts = getPosts();
 
-    var html = '<table><thead><tr>' +
-      '<th></th><th>Type</th><th>Date</th><th>Status</th><th>Order</th><th>Actions</th>' +
+    var html = '<table id="admin-sort-table"><thead><tr>' +
+      '<th style="width:28px"></th><th></th><th>Type</th><th>Date</th><th>Status</th><th>Order</th><th>Actions</th>' +
       '</tr></thead><tbody>';
 
-    posts.forEach(function (p) {
+    posts.forEach(function (p, idx) {
       var thumb = '';
       if (p.type === 'photo' && p.img) {
         thumb = '<img src="' + escHtml(p.img) + '" alt="" />';
-      } else if (p.type === 'video') {
-        thumb = '<span style="color:#aaa;font-size:10px">VIDEO</span>';
+      } else if (p.type === 'video' || p.type === 'audio') {
+        thumb = '<span style="color:#aaa;font-size:10px">' + p.type.toUpperCase() + '</span>';
       } else if (p.type === 'link') {
         thumb = '<span style="color:#aaa;font-size:10px">LINK</span>';
+      } else if (p.type === 'quote') {
+        thumb = '<span style="color:#aaa;font-size:10px">QUOTE</span>';
+      } else if (p.type === 'text') {
+        thumb = '<span style="color:#aaa;font-size:10px">TEXT</span>';
       } else {
         thumb = '<span style="color:#aaa;font-size:10px">REBLOG</span>';
       }
@@ -181,15 +188,16 @@
         ? '<span class="badge badge-pub">published</span>'
         : '<span class="badge badge-draft">draft</span>';
 
-      html += '<tr>' +
+      html += '<tr draggable="true" data-id="' + escAttr(p._id) + '" data-idx="' + idx + '">' +
+        '<td class="drag-handle" title="Drag to reorder">⋮⋮</td>' +
         '<td>' + thumb + '</td>' +
         '<td style="text-transform:uppercase;font-weight:bold">' + escHtml(p.type) + '</td>' +
         '<td>' + escHtml(p.date || '') + '</td>' +
         '<td>' + status + '</td>' +
-        '<td>' + (p.sortOrder || 0) + '</td>' +
+        '<td class="order-cell">' + (p.sortOrder || 0) + '</td>' +
         '<td>' +
-          '<button class="btn btn-outline" onclick="window._adminEdit(\'' + p._id + '\')">Edit</button> ' +
-          '<button class="btn btn-danger" onclick="window._adminDelete(\'' + p._id + '\')">Delete</button>' +
+          '<button class="btn btn-outline" onclick="event.stopPropagation();window._adminEdit(\'' + p._id + '\')">Edit</button> ' +
+          '<button class="btn btn-danger" onclick="event.stopPropagation();window._adminDelete(\'' + p._id + '\')">Delete</button>' +
         '</td>' +
         '</tr>';
     });
@@ -197,6 +205,91 @@
     html += '</tbody></table>';
     if (posts.length === 0) html += '<div style="padding:30px;text-align:center;color:#aaa">No posts yet.</div>';
     wrap.innerHTML = html;
+
+    // Bind drag events after rendering
+    bindDragEvents();
+  }
+
+  /* ── Drag & Drop Sorting ────────────────────────────────── */
+
+  function bindDragEvents() {
+    var rows = document.querySelectorAll('#admin-sort-table tbody tr[draggable]');
+    rows.forEach(function (row) {
+      row.addEventListener('dragstart', handleDragStart);
+      row.addEventListener('dragenter', handleDragEnter);
+      row.addEventListener('dragover', handleDragOver);
+      row.addEventListener('dragleave', handleDragLeave);
+      row.addEventListener('drop', handleDrop);
+      row.addEventListener('dragend', handleDragEnd);
+    });
+  }
+
+  function handleDragStart(e) {
+    _dragSrcId = this.getAttribute('data-id');
+    _dragSrcEl = this;
+    this.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', _dragSrcId);
+    // Set drag image transparency
+    e.dataTransfer.setDragImage(this, 0, 10);
+  }
+
+  function handleDragEnter(e) {
+    e.preventDefault();
+    if (this !== _dragSrcEl) {
+      this.classList.add('drag-over');
+    }
+  }
+
+  function handleDragOver(e) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    return false;
+  }
+
+  function handleDragLeave(e) {
+    this.classList.remove('drag-over');
+  }
+
+  function handleDrop(e) {
+    e.stopPropagation();
+    e.preventDefault();
+
+    if (_dragSrcId === null || this === _dragSrcEl) return;
+
+    var targetId = this.getAttribute('data-id');
+    if (!targetId || targetId === _dragSrcId) return;
+
+    // Get current posts array
+    var posts = getPosts();
+    var srcIdx = posts.findIndex(function (p) { return p._id === _dragSrcId; });
+    var tgtIdx = posts.findIndex(function (p) { return p._id === targetId; });
+
+    if (srcIdx < 0 || tgtIdx < 0) return;
+
+    // Remove from source, insert at target
+    var moved = posts.splice(srcIdx, 1)[0];
+    posts.splice(tgtIdx, 0, moved);
+
+    // Recalculate sortOrder based on new position
+    posts.forEach(function (p, i) { p.sortOrder = i * 10; });
+
+    // Save reordered posts
+    savePosts(posts);
+
+    // Re-render table with new order
+    renderAdminTable();
+
+    _dragSrcId = null;
+    _dragSrcEl = null;
+  }
+
+  function handleDragEnd(e) {
+    this.classList.remove('dragging');
+    var rows = document.querySelectorAll('#admin-sort-table tbody tr[draggable]');
+    rows.forEach(function (r) { r.classList.remove('drag-over'); });
+    _dragSrcId = null;
+    _dragSrcEl = null;
   }
 
   /* ── Form ────────────────────────────────────────────────── */
