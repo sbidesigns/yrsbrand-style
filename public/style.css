@@ -47,19 +47,28 @@ body { padding:0; margin:0; font-family:'Helvetica Neue', Helvetica, Arial, sans
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* ─── Social Icons Row (SVG, inline-block) — Below Links ─── */
-.social-row { 
-  display: flex; 
-  justify-content: center; 
-  align-items: center; 
+/* ─── Social Icons Row ─── */
+.social-row {
+  display: flex;
+  justify-content: center;
+  align-items: center;
   gap: 32px;
   margin: 12px auto 0;
-  width: fit-content;
 }
-.social-row a { display: inline-flex; text-decoration: none; }
+.social-row a {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  padding: 0;
+  line-height: 0;
+}
 .social-row a:hover { opacity: 0.5; }
-.social-row svg { width: 16px; height: 16px; transition: opacity 0.3s ease; }
-.social-spacer { width: 8px; display: inline-block; }
+.social-row svg {
+  display: block;
+  width: 18px;
+  height: 18px;
+}
 
 /* ─── Post Detail (Permalink) ─── */
 #post_detail_box { 
