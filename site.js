@@ -10,12 +10,12 @@ var SITE_DATA = {
   "links": [
     {
       "label": "lifestyle",
-      "href": "../",
+      "href": "/",
       "title": "lifestyle"
     },
     {
       "label": "music & videos",
-      "href": "/tagged/media",
+      "href": "/",
       "title": "music & videos"
     },
     {

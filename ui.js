@@ -74,6 +74,27 @@
     container.appendChild(el('div', { className: 'clear' }));
     content.appendChild(container);
 
+    // Global click interceptor for photo posts — prevents link navigation, uses hash instead
+    container.addEventListener('click', function (e) {
+      var postEl = e.target.closest('.post.photo');
+      if (!postEl) return;
+      // Don't intercept reblog clicks
+      if (e.target.closest('.reblog a') || e.target.closest('.reblog')) return;
+      // Don't intercept if click is explicitly on an external link with target="_blank"
+      var link = e.target.closest('a[href]');
+      if (link && (link.target === '_blank' || link.getAttribute('target') === '_blank')) return;
+      
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+      
+      var idx = postEl.getAttribute('data-post-index');
+      if (idx !== null) {
+        window.location.hash = '#post/' + idx;
+      }
+      return false;
+    }, true); // capture phase
+
     var loadBox = el('div', { id: 'load_box' });
     var loadA = el('a', { href: '#', id: 'load' }, 'Load next page');
     loadA.addEventListener('click', function (e) {
@@ -265,9 +286,17 @@
     dateDiv.appendChild(dateSpan);
     floatDiv.appendChild(dateDiv);
 
+    // "View More" text also opens detail
+    dateSpan.style.cursor = 'pointer';
+    dateSpan.addEventListener('click', function (e) {
+      e.stopPropagation();
+      e.preventDefault();
+      window.location.hash = '#post/' + index;
+    });
+
     var reblogDiv = el('div', { className: 'reblog' }, 'repost');
     if (post.reblogUrl) {
-      var reblogA = el('a', { href: post.reblogUrl, target: '_blank', style: 'color:white;text-decoration:none;' });
+      var reblogA = el('a', { href: post.reblogUrl, target: '_blank', rel: 'noopener noreferrer', style: 'color:white;text-decoration:none;' });
       reblogA.appendChild(reblogDiv);
       floatDiv.appendChild(reblogA);
     } else {
@@ -282,15 +311,33 @@
     var img = document.createElement('img');
     img.src = post.img;
     img.alt = 'YRS Brand';
+    img.style.cursor = 'pointer';
     picture.appendChild(img);
 
     photo.appendChild(picture);
 
-    // Click to open post detail
-    photo.style.cursor = 'pointer';
-    photo.addEventListener('click', function (e) {
-      if (e.target.closest('.reblog a')) return; // let reblog link work
+    // Click to open post detail — prevent any link navigation inside photo
+    function openDetail(e) {
+      // Don't intercept if clicking reblog link
+      if (e.target.closest('.reblog a')) return;
+      if (e.target.closest('.reblog')) return;
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
       window.location.hash = '#post/' + index;
+      return false;
+    }
+
+    photo.style.cursor = 'pointer';
+    photo.addEventListener('click', openDetail, true); // capture phase
+    img.addEventListener('click', openDetail, true); // capture phase
+    
+    // Also prevent default on any <a> inside photo that isn't reblog
+    photo.querySelectorAll('a:not(.reblog a)').forEach(function(a) {
+      a.addEventListener('click', function(e) {
+        e.preventDefault();
+        openDetail(e);
+      });
     });
 
     return photo;
@@ -313,6 +360,108 @@
     var a = el('a', { href: post.href, className: 'link' });
     a.appendChild(el('h3', {}, post.title));
     return a;
+  }
+
+  /* ── Share Bar Builder ────────────────────────────────────── */
+
+  var SHARE_SVGS = {
+    facebook: '<svg viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>',
+    twitter: '<svg viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>',
+    pinterest: '<svg viewBox="0 0 24 24"><path d="M12.017 0C5.396 0 .029 5.367.029 11.987c0 5.079 3.158 9.417 7.618 11.162-.105-.949-.199-2.403.041-3.439.219-.937 1.406-5.957 1.406-5.957s-.359-.72-.359-1.781c0-1.668.967-2.914 2.171-2.914 1.023 0 1.518.769 1.518 1.69 0 1.029-.655 2.568-.994 3.995-.283 1.194.599 2.169 1.777 2.169 2.133 0 3.772-2.249 3.772-5.495 0-2.873-2.064-4.882-5.012-4.882-3.414 0-5.418 2.561-5.418 5.207 0 1.031.397 2.138.893 2.738a.36.36 0 01.083.343c-.091.378-.294 1.189-.334 1.355-.053.218-.173.265-.4.159-1.492-.694-2.424-2.875-2.424-4.627 0-3.769 2.737-7.229 7.892-7.229 4.144 0 7.365 2.953 7.365 6.899 0 4.117-2.595 7.431-6.199 7.431-1.211 0-2.348-.63-2.738-1.373 0 0-.598 2.28-.744 2.84-.269 1.029-1 2.319-1.492 3.106 1.125.347 2.322.532 3.561.532 6.627 0 11.988-5.367 11.988-11.988C24.005 5.367 18.644 0 12.017 0z"/></svg>',
+    reddit: '<svg viewBox="0 0 24 24"><path d="M12 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0zm5.01 4.744c.688 0 1.25.561 1.25 1.249a1.25 1.25 0 0 1-2.498.056l-2.597-.547-.8 3.747c1.824.07 3.48.632 4.674 1.488.308-.309.73-.491 1.207-.491.968 0 1.754.786 1.754 1.754 0 .716-.435 1.333-1.01 1.614a3.111 3.111 0 0 1 .042.52c0 2.694-3.13 4.87-7.004 4.87-3.874 0-7.004-2.176-7.004-4.87 0-.183.015-.366.043-.534A1.748 1.748 0 0 1 4.028 12c0-.968.786-1.754 1.754-1.754.463 0 .898.196 1.207.49 1.207-.883 2.878-1.43 4.744-1.487l.885-4.182a.342.342 0 0 1 .14-.197.35.35 0 0 1 .238-.042l2.906.617a1.214 1.214 0 0 1 1.108-.701zM9.25 12C8.561 12 8 12.562 8 13.25c0 .687.561 1.248 1.25 1.248.687 0 1.248-.561 1.248-1.249 0-.688-.561-1.249-1.249-1.249zm5.5 0c-.687 0-1.248.561-1.248 1.25 0 .687.561 1.248 1.249 1.248.688 0 1.249-.561 1.249-1.249 0-.687-.562-1.249-1.25-1.249zm-5.466 3.99a.327.327 0 0 0-.231.094.33.33 0 0 0 0 .463c.842.842 2.484.913 2.961.913.477 0 2.105-.056 2.961-.913a.361.361 0 0 0 .029-.463.33.33 0 0 0-.464 0c-.547.533-1.684.73-2.512.73-.828 0-1.979-.196-2.512-.73a.326.326 0 0 0-.232-.095z"/></svg>',
+    tumblr: '<svg viewBox="0 0 24 24"><path d="M14.563 24c-5.093 0-7.031-3.756-7.031-6.411V9.797H5.625V7.125c2.972-.98 3.716-3.42 3.891-6.048.007-.222.187-.405.41-.405h2.803v5.906h3.844v3.219h-3.844v7.188c0 .94.356 1.579 1.454 1.579h2.391V24h-2.511z"/></svg>',
+    email: '<svg viewBox="0 0 24 24"><path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>',
+    copy: '<svg viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>',
+    check: '<svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>'
+  };
+
+  function buildShareBar(post) {
+    var url = post.url || window.location.href;
+    var title = 'YRS Brand';
+    var desc = post.date ? 'Posted on ' + post.date : '';
+    var img = post.img || '';
+
+    var bar = el('div', { className: 'share-bar' });
+
+    // Label
+    bar.appendChild(el('span', { className: 'share-bar-label' }, 'Share'));
+
+    // Facebook
+    var fbBtn = el('a', { className: 'share-btn facebook', href: 'https://www.facebook.com/sharer/sharer.php?u=' + encodeURIComponent(url), target: '_blank', rel: 'noopener noreferrer', title: 'Share on Facebook' });
+    fbBtn.innerHTML = SHARE_SVGS.facebook + ' Share';
+    bar.appendChild(fbBtn);
+
+    // Twitter / X
+    var twBtn = el('a', { className: 'share-btn twitter', href: 'https://twitter.com/intent/tweet?url=' + encodeURIComponent(url) + '&text=' + encodeURIComponent(title) + (img ? '&via=yrsbrand' : ''), target: '_blank', rel: 'noopener noreferrer', title: 'Post on X' });
+    twBtn.innerHTML = SHARE_SVGS.twitter + ' Post';
+    bar.appendChild(twBtn);
+
+    // Pinterest
+    if (img) {
+      var piBtn = el('a', { className: 'share-btn pinterest', href: 'https://pinterest.com/pin/create/button/?url=' + encodeURIComponent(url) + '&media=' + encodeURIComponent(img) + '&description=' + encodeURIComponent(desc), target: '_blank', rel: 'noopener noreferrer', title: 'Pin it' });
+      piBtn.innerHTML = SHARE_SVGS.pinterest + ' Pin';
+      bar.appendChild(piBtn);
+    }
+
+    // Reddit
+    var rdBtn = el('a', { className: 'share-btn reddit', href: 'https://reddit.com/submit?url=' + encodeURIComponent(url) + '&title=' + encodeURIComponent(title), target: '_blank', rel: 'noopener noreferrer', title: 'Submit to Reddit' });
+    rdBtn.innerHTML = SHARE_SVGS.reddit + ' Submit';
+    bar.appendChild(rdBtn);
+
+    // Tumblr
+    if (post.reblogUrl) {
+      var tbBtn = el('a', { className: 'share-btn tumblr', href: post.reblogUrl, target: '_blank', rel: 'noopener noreferrer', title: 'Reblog on Tumblr' });
+      tbBtn.innerHTML = SHARE_SVGS.tumblr + ' Reblog';
+      bar.appendChild(tbBtn);
+    }
+
+    // Email
+    var emBtn = el('a', { className: 'share-btn email', href: 'mailto:?subject=' + encodeURIComponent(title) + '&body=' + encodeURIComponent(desc + '\n\n' + url), title: 'Share via Email' });
+    emBtn.innerHTML = SHARE_SVGS.email + ' Email';
+    bar.appendChild(emBtn);
+
+    // Copy Link wrapper
+    var copyWrap = el('div', { className: 'copy-link-wrapper' });
+    var input = el('input', { className: 'copy-link-input', type: 'text', readonly: 'readonly', value: url });
+    var copyBtn = el('button', { className: 'copy-link-btn', type: 'button', title: 'Copy link' });
+    copyBtn.innerHTML = '<span class="copy-text">' + SHARE_SVGS.copy + ' Copy</span>';
+    copyWrap.appendChild(input);
+    copyWrap.appendChild(copyBtn);
+    bar.appendChild(copyWrap);
+
+    // Copy click handler
+    copyBtn.addEventListener('click', function () {
+      input.select();
+      input.setSelectionRange(0, 99999); // mobile support
+      try {
+        document.execCommand('copy');
+        // Visual feedback
+        copyBtn.classList.add('copied');
+        copyBtn.innerHTML = SHARE_SVGS.check + ' Copied!';
+        setTimeout(function () {
+          copyBtn.classList.remove('copied');
+          copyBtn.innerHTML = '<span class="copy-text">' + SHARE_SVGS.copy + ' Copy</span>';
+        }, 2200);
+      } catch (e) {
+        // Fallback for older browsers
+        var temp = document.createElement('textarea');
+        temp.value = url;
+        temp.style.position = 'fixed';
+        temp.style.left = '-9999px';
+        document.body.appendChild(temp);
+        temp.select();
+        try { document.execCommand('copy'); } catch (e2) { /* ignore */ }
+        document.body.removeChild(temp);
+        copyBtn.classList.add('copied');
+        copyBtn.innerHTML = SHARE_SVGS.check + ' Copied!';
+        setTimeout(function () {
+          copyBtn.classList.remove('copied');
+          copyBtn.innerHTML = '<span class="copy-text">' + SHARE_SVGS.copy + ' Copy</span>';
+        }, 2200);
+      }
+    });
+
+    return bar;
   }
 
   /* ── Hash Router (post detail) ───────────────────────────── */
@@ -353,6 +502,12 @@
 
     // Hide other panels
     hide('#description_box, #connect_box, #blogroll_box, #twitter_box');
+    
+    // Make hovers full-width for post detail (override panel styling)
+    var hoversEl = document.getElementById('hovers');
+    if (hoversEl) {
+      hoversEl.style.cssText = 'display:block!important;position:static;width:100%;min-height:100vh;background:#fff;padding:0;';
+    }
     show('#hovers');
 
     var detail = el('div', { id: 'post_detail_box' });
@@ -417,20 +572,30 @@
 
     detail.appendChild(postDiv);
 
+    // Share Bar — professional multi-platform share + copy link
+    detail.appendChild(buildShareBar(post));
+
     // Notes section (avatar grid style, matching original ol.notes)
     if (post.notes && post.notes > 0) {
       var notesWrap = el('div', { style: 'width:500px;margin:0 auto 30px;overflow:hidden;padding:22px 11px 0;border-top:1px dotted rgba(0,0,0,0.1);' });
       var notesLabel = el('div', { style: 'font-size:10px;font-weight:bold;line-height:20px;margin-bottom:15px;text-transform:uppercase;' });
       notesLabel.textContent = post.notes + ' notes';
       notesWrap.appendChild(notesLabel);
-      // Placeholder note avatars
+      // Placeholder note avatars — self-contained SVG data URI (no external dependency)
       var avatarGrid = el('ol', { className: 'notes' });
+      // Self-contained 16x16 avatar as data URI (YRS "Y" monogram)
+      var avatarDataUri = 'data:image/svg+xml,' + encodeURIComponent(
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16">' +
+        '<rect width="16" height="16" rx="2" fill="#000000"/>' +
+        '<text x="8" y="12.5" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#ffffff" text-anchor="middle">Y</text>' +
+        '</svg>'
+      );
       for (var n = 0; n < Math.min(post.notes, 20); n++) {
         var li = el('li', { className: 'note' });
         var avatar = document.createElement('img');
         avatar.className = 'avatar';
-        avatar.src = 'https://64.media.tumblr.com/avatar_6db2c24da6e1_16.pnj';
-        avatar.alt = '';
+        avatar.src = avatarDataUri;
+        avatar.alt = 'YRS';
         li.appendChild(avatar);
         avatarGrid.appendChild(li);
       }
@@ -447,6 +612,11 @@
   function closePostDetail() {
     var detail = document.getElementById('post_detail_box');
     if (detail) detail.remove();
+    // Reset hovers to original panel styling
+    var hoversEl = document.getElementById('hovers');
+    if (hoversEl) {
+      hoversEl.style.cssText = '';
+    }
     hide('#hovers');
     show('#container, #load_box, #yrs_credit');
     setTimeout(masonryLayout, 50);
