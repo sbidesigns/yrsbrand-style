@@ -79,15 +79,13 @@
       inner.style.height = 'auto';
 
       posts.forEach(function (post) {
-        // Override any conflicting CSS (float, etc.)
-        post.style.float = 'none';
-        post.style.margin = '0';
+        // CRITICAL: override CSS float/margin that fights position:absolute
+        post.style.cssText += ';float:none!important;margin:0!important;position:absolute!important;';
 
         var shortest = 0;
         for (var i = 1; i < cols; i++) {
           if (colHeights[i] < colHeights[shortest]) shortest = i;
         }
-        post.style.position = 'absolute';
         post.style.left = (shortest * (colW + gap)) + 'px';
         post.style.top = colHeights[shortest] + 'px';
         colHeights[shortest] += post.offsetHeight + gap;
