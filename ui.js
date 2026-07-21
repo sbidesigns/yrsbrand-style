@@ -11,6 +11,7 @@
   var POSTS_KEY = 'yrs_posts';
   var PER_PAGE = 10;
   var currentPage = 0;
+  var _currentFilter = null; // null = all, 'video' = music & videos
 
   function getStoredPosts() {
     try {
@@ -31,8 +32,11 @@
 
   function getAllPosts() {
     var stored = getStoredPosts();
-    if (stored) return stored.filter(function (p) { return p.published !== false; });
-    return SITE_DATA.posts;
+    var base = stored ? stored.filter(function (p) { return p.published !== false; }) : SITE_DATA.posts;
+    if (_currentFilter) {
+      return base.filter(function (p) { return p.type === _currentFilter; });
+    }
+    return base;
   }
 
   function getVisiblePosts() {
@@ -638,11 +642,82 @@
 
   /* ── Panel toggle ────────────────────────────────────────── */
 
+  function setFilter(type) {
+    _currentFilter = type;
+    currentPage = 0;
+    // Update active state on nav links
+    var links = document.querySelectorAll('#header .links a');
+    links.forEach(function (a) {
+      var label = (a.textContent || '').toLowerCase();
+      if (type === 'video' && (label.indexOf('music') !== -1 || label.indexOf('video') !== -1)) {
+        a.style.fontWeight = '900';
+        a.style.color = '#000';
+      } else if (type === null && label.indexOf('lifestyle') !== -1) {
+        a.style.fontWeight = 'bold';
+        a.style.color = '#000';
+      } else if (!a.getAttribute('data-panel')) {
+        a.style.fontWeight = 'bold';
+        a.style.color = '#000';
+      }
+    });
+    // Re-render posts
+    rebuildPosts();
+  }
+
+  function rebuildPosts() {
+    var container = document.getElementById('container');
+    if (!container) return;
+    container.innerHTML = '';
+    getVisiblePosts().forEach(function (post, i) {
+      container.appendChild(buildPost(post, i));
+    });
+    container.appendChild(el('div', { className: 'clear' }));
+    updateLoadButton();
+    setTimeout(masonryLayout, 50);
+  }
+
+  function updateLoadButton() {
+    var load = document.getElementById('load');
+    if (!load) return;
+    if (hasMorePosts()) {
+      load.style.display = '';
+      load.querySelector('a').textContent = 'Load More';
+    } else {
+      load.style.display = 'none';
+    }
+  }
+
   function attachPanelListeners(content) {
     var aboutBtn = content.querySelector('#header .description');
     var connectBtn = content.querySelector('#header a[data-panel="connect"]');
     var closeBtn = content.querySelector('#close');
     var goUpBtn = document.getElementById('up');
+
+    // Nav link filter handlers
+    var navLinks = content.querySelectorAll('#header .links a');
+    navLinks.forEach(function (a) {
+      var label = (a.textContent || '').toLowerCase();
+      // Music & Videos → filter video posts
+      if (label.indexOf('music') !== -1 || label.indexOf('video') !== -1) {
+        a.addEventListener('click', function (e) {
+          e.preventDefault();
+          closePostDetail();
+          hide('#hovers, #description_box, #connect_box, #blogroll_box, #twitter_box');
+          show('#container, #load_box');
+          setFilter('video');
+        });
+      }
+      // Lifestyle → show all posts
+      else if (label.indexOf('lifestyle') !== -1) {
+        a.addEventListener('click', function (e) {
+          e.preventDefault();
+          closePostDetail();
+          hide('#hovers, #description_box, #connect_box, #blogroll_box, #twitter_box');
+          show('#container, #load_box');
+          setFilter(null);
+        });
+      }
+    });
 
     if (aboutBtn) {
       aboutBtn.addEventListener('click', function (e) {
@@ -723,7 +798,7 @@
   function hide(sel)  { document.querySelectorAll(sel).forEach(function (e) { e.style.display = 'none'; }); }
 
   /* ── Expose rebuild for admin.js ─────────────────────────── */
-  window.YRS_UI = { rebuild: rebuildPage, getAllPosts: getAllPosts };
+  window.YRS_UI = { rebuild: rebuildPage, rebuildPosts: rebuildPosts, getAllPosts: getAllPosts };
 
   /* ── Boot ────────────────────────────────────────────────── */
   if (document.readyState === 'loading') {
