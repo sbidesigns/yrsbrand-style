@@ -307,13 +307,11 @@
     });
 
     var reblogDiv = el('div', { className: 'reblog' }, 'repost');
-    if (post.reblogUrl) {
-      var reblogA = el('a', { href: post.reblogUrl, target: '_blank', rel: 'noopener noreferrer', style: 'color:white;text-decoration:none;' });
-      reblogA.appendChild(reblogDiv);
-      floatDiv.appendChild(reblogA);
-    } else {
-      floatDiv.appendChild(reblogDiv);
-    }
+    // Always make reblog functional — opens Tumblr share with image + backlink
+    var tumblrUrl = buildTumblrShareUrl(post);
+    var reblogA = el('a', { href: tumblrUrl, target: '_blank', rel: 'noopener noreferrer', style: 'color:white;text-decoration:none;', title: 'Reblog on Tumblr' });
+    reblogA.appendChild(reblogDiv);
+    floatDiv.appendChild(reblogA);
 
     holder.appendChild(note);
     holder.appendChild(floatDiv);
@@ -462,6 +460,199 @@
     return wrap;
   }
 
+  /* ── Tumblr Share / Reblog Builder ───────────────────────── */
+
+  var SITE_URL = 'https://sbidesigns.github.io/yrsbrand-style/';
+
+  /**
+   * Build a Tumblr share URL that posts the content to Tumblr with:
+   * - The image/media embedded directly
+   * - A link back to our site (SEO + attribution)
+   * - Proper tags for discoverability
+   * - Caption with CTA to visit site
+   */
+  function buildTumblrShareUrl(post) {
+    var params = {};
+    var postType = 'link'; // default
+    var caption = '';
+    var tags = ['yrsbrand', 'YRS', 'apparel', 'lifestyle'];
+    var postTags = post.tags || [];
+    if (postTags.length) tags = tags.concat(postTags.slice(0, 5));
+    tags = tags.filter(function (t, i, arr) { return arr.indexOf(t) === i; }).join(',');
+
+    switch (post.type) {
+      case 'photo':
+        postType = 'photo';
+        caption = (post.caption || '') + '\\n\\n— YRS Brand | Apparel That Inspires\\n' + SITE_URL;
+        params = {
+          posttype: postType,
+          caption: caption,
+          content: post.img || '',
+          tags: tags,
+          url: SITE_URL + '#post/' + getAllPosts().indexOf(post)
+        };
+        break;
+
+      case 'video':
+        postType = 'video';
+        caption = (post.title || 'YRS Brand Video') + '\\n\\n— YRS Brand | Apparel That Inspires\\n' + SITE_URL;
+        params = {
+          posttype: postType,
+          caption: caption,
+          embed: post.src || '',
+          tags: tags,
+          url: SITE_URL + '#post/' + getAllPosts().indexOf(post)
+        };
+        break;
+
+      case 'audio':
+        postType = 'link';
+        caption = (post.title || 'YRS Brand Music') + ' — ' + (post.artist || 'YRS') + '\\n\\n🎧 Listen on ' + (post.platform || 'Spotify') + '\\n\\n— YRS Brand | Apparel That Inspires\\n' + SITE_URL;
+        params = {
+          posttype: postType,
+          title: post.title || 'YRS Brand Music',
+          url: post.embedUrl || SITE_URL,
+          description: caption,
+          tags: tags
+        };
+        break;
+
+      case 'link':
+        postType = 'link';
+        caption = (post.title || 'YRS Brand') + '\\n\\n' + (post.desc || '') + '\\n\\n— YRS Brand | Apparel That Inspires\\n' + SITE_URL;
+        params = {
+          posttype: postType,
+          title: post.title || 'YRS Brand',
+          url: post.href || SITE_URL,
+          description: post.desc || '',
+          tags: tags
+        };
+        break;
+
+      case 'quote':
+        postType = 'quote';
+        caption = '"' + (post.text || '') + '" — ' + (post.source || 'YRS Brand') + '\\n\\n— YRS Brand | Apparel That Inspires\\n' + SITE_URL;
+        params = {
+          posttype: postType,
+          quote: post.text || '',
+          source: post.source || 'YRS Brand',
+          tags: tags,
+          url: SITE_URL
+        };
+        break;
+
+      case 'text':
+      case 'reblog':
+      default:
+        postType = 'link';
+        caption = (post.title || 'YRS Brand') + '\\n\\n— YRS Brand | Apparel That Inspires\\n' + SITE_URL;
+        params = {
+          posttype: postType,
+          title: post.title || 'YRS Brand',
+          url: SITE_URL,
+          description: post.body ? post.body.replace(/<[^>]+>/g, '').substring(0, 200) : '',
+          tags: tags
+        };
+        break;
+    }
+
+    // Build query string
+    var qs = Object.keys(params).map(function (k) {
+      return encodeURIComponent(k) + '=' + encodeURIComponent(params[k]);
+    }).join('&');
+
+    return 'https://www.tumblr.com/widgets/share/tool?' + qs;
+  }
+
+  /* ── Dynamic Meta Tags for Rich Sharing ───────────────────── */
+
+  /**
+   * Updates Open Graph & Twitter Card meta tags when viewing a single post.
+   * This ensures shared links show rich previews with images, titles, descriptions.
+   */
+  function updateMetaTags(post) {
+    if (!post) return;
+
+    var idx = getAllPosts().indexOf(post);
+    var postUrl = SITE_URL + '#post/' + idx;
+    var title = 'YRS Brand';
+    var desc = 'Apparel that motivates and inspires.';
+    var img = '';
+    var twitterCard = 'summary';
+
+    switch (post.type) {
+      case 'photo':
+        title = 'YRS Brand | ' + (post.caption || 'Photo');
+        desc = post.caption || 'YRS® Brand — Apparel that motivates and inspires the individual to be great.';
+        img = post.img || '';
+        twitterCard = 'summary_large_image';
+        break;
+      case 'video':
+        title = 'YRS Brand | ' + (post.title || 'Video');
+        desc = post.title || 'YRS® Brand Video Content';
+        twitterCard = 'summary_large_image';
+        break;
+      case 'audio':
+        title = 'YRS Brand Music | ' + (post.title || 'Audio');
+        desc = (post.artist ? post.artist + ' — ' : '') + (post.title || 'Music') + ' | YRS® Brand';
+        img = post.img || '';
+        break;
+      case 'link':
+        title = 'YRS Brand | ' + (post.title || 'Link');
+        desc = post.desc || post.title || 'YRS® Brand';
+        break;
+      case 'quote':
+        title = 'YRS Brand | Quote';
+        desc = (post.text || '').replace(/<[^>]+>/g, '').substring(0, 200);
+        break;
+      default:
+        title = 'YRS Brand | Post';
+        desc = post.date ? 'Posted ' + post.date : 'YRS® Brand — Apparel That Inspires';
+        break;
+    }
+
+    setMeta('og:title', title);
+    setMeta('og:description', desc);
+    setMeta('og:url', postUrl);
+    if (img) setMeta('og:image', img);
+
+    setMeta('twitter:title', title);
+    setMeta('twitter:description', desc);
+    setMeta('twitter:card', twitterCard);
+    if (img) setMeta('twitter:image', img);
+
+    // Also update document title
+    document.title = title;
+  }
+
+  function setMeta(prop, content) {
+    // Try property="og:..." first, then name="twitter:..."
+    var el = document.querySelector('meta[property="' + prop + '"]')
+           || document.querySelector('meta[name="' + prop + '"]');
+    if (el) {
+      el.setAttribute('content', content);
+    } else {
+      // Create if doesn't exist
+      var isOg = prop.indexOf('og:') === 0;
+      el = document.createElement('meta');
+      el.setAttribute(isOg ? 'property' : 'name', prop);
+      el.setAttribute('content', content);
+      document.head.appendChild(el);
+    }
+  }
+
+  function resetMetaTags() {
+    setMeta('og:title', 'YRS Brand — Apparel That Inspires');
+    setMeta('og:description', 'We create apparel that motivates and inspires the individual to be great. Lifestyle, music, fashion & culture.');
+    setMeta('og:url', SITE_URL);
+    setMeta('og:image', SITE_URL + 'favicon.svg');
+    setMeta('twitter:title', 'YRS Brand — Apparel That Inspires');
+    setMeta('twitter:description', 'We create apparel that motivates and inspires the individual to be great.');
+    setMeta('twitter:card', 'summary_large_image');
+    setMeta('twitter:image', SITE_URL + 'favicon.svg');
+    document.title = 'YRS Brand — Apparel That Inspires';
+  }
+
   /* ── Share Bar Builder ────────────────────────────────────── */
 
   var SHARE_SVGS = {
@@ -508,12 +699,11 @@
     rdBtn.innerHTML = SHARE_SVGS.reddit + ' Submit';
     bar.appendChild(rdBtn);
 
-    // Tumblr
-    if (post.reblogUrl) {
-      var tbBtn = el('a', { className: 'share-btn tumblr', href: post.reblogUrl, target: '_blank', rel: 'noopener noreferrer', title: 'Reblog on Tumblr' });
-      tbBtn.innerHTML = SHARE_SVGS.tumblr + ' Reblog';
-      bar.appendChild(tbBtn);
-    }
+    // Tumblr — always show, builds proper share URL with image + backlink
+    var tbUrl = buildTumblrShareUrl(post);
+    var tbBtn = el('a', { className: 'share-btn tumblr', href: tbUrl, target: '_blank', rel: 'noopener noreferrer', title: 'Reblog on Tumblr' });
+    tbBtn.innerHTML = SHARE_SVGS.tumblr + ' Reblog';
+    bar.appendChild(tbBtn);
 
     // Email
     var emBtn = el('a', { className: 'share-btn email', href: 'mailto:?subject=' + encodeURIComponent(title) + '&body=' + encodeURIComponent(desc + '\n\n' + url), title: 'Share via Email' });
@@ -731,6 +921,9 @@
 
     hovers.appendChild(detail);
 
+    // Update meta tags for rich sharing when this post is shared
+    updateMetaTags(post);
+
     // Scroll to top so user sees the detail
     window.scrollTo(0, 0);
   }
@@ -743,6 +936,8 @@
     if (hoversEl) {
       hoversEl.style.cssText = '';
     }
+    // Reset meta tags back to defaults
+    resetMetaTags();
     hide('#hovers');
     show('#container, #load_box, #yrs_credit');
     // Restore scroll position after content is visible
