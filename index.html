@@ -43,12 +43,12 @@
   </div>
   <div id="center"></div>
   <script>
-    /* ── Masonry via CSS Columns v2 — resets all inline styles ─── */
+    /* ── Grid Layout via CSS Grid — auto-fill + centering ─── */
     function masonryLayout() {
       var c = document.getElementById('container');
       if (!c) return;
 
-      /* CRITICAL: nuke any leftover inline styles from old masonry code */
+      /* Nuke any leftover inline styles from old masonry */
       var posts = c.querySelectorAll('.post');
       for (var i = 0; i < posts.length; i++) {
         posts[i].style.position = '';
@@ -57,12 +57,15 @@
         posts[i].style.float = '';
         posts[i].style.margin = '';
         posts[i].style.width = '';
+        posts[i].style.display = '';
       }
 
-      var w = c.offsetWidth || 1050;
-      var colW = 330;
-      var cols = Math.max(1, Math.floor(w / colW));
-      c.style.columnCount = cols;
+      /* Pure CSS grid — browser handles ALL positioning & centering */
+      c.style.display = 'grid';
+      c.style.gridTemplateColumns = 'repeat(auto-fill, 320px)';
+      c.style.justifyContent = 'center';
+      c.style.gap = '30px';
+      c.style.columnCount = ''; /* remove old column-count if present */
     }
     window.addEventListener('resize', masonryLayout);
     window.addEventListener('load', function(){ setTimeout(masonryLayout,100); });
