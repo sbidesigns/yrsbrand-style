@@ -265,9 +265,17 @@
     dateDiv.appendChild(dateSpan);
     floatDiv.appendChild(dateDiv);
 
+    // "View More" text also opens detail
+    dateSpan.style.cursor = 'pointer';
+    dateSpan.addEventListener('click', function (e) {
+      e.stopPropagation();
+      e.preventDefault();
+      window.location.hash = '#post/' + index;
+    });
+
     var reblogDiv = el('div', { className: 'reblog' }, 'repost');
     if (post.reblogUrl) {
-      var reblogA = el('a', { href: post.reblogUrl, target: '_blank', style: 'color:white;text-decoration:none;' });
+      var reblogA = el('a', { href: post.reblogUrl, target: '_blank', rel: 'noopener noreferrer', style: 'color:white;text-decoration:none;' });
       reblogA.appendChild(reblogDiv);
       floatDiv.appendChild(reblogA);
     } else {
@@ -282,16 +290,24 @@
     var img = document.createElement('img');
     img.src = post.img;
     img.alt = 'YRS Brand';
+    img.style.cursor = 'pointer';
     picture.appendChild(img);
 
     photo.appendChild(picture);
 
-    // Click to open post detail
-    photo.style.cursor = 'pointer';
-    photo.addEventListener('click', function (e) {
-      if (e.target.closest('.reblog a')) return; // let reblog link work
+    // Click to open post detail — attached to both photo div and image
+    function openDetail(e) {
+      // Don't intercept if clicking reblog link
+      if (e.target.closest('.reblog a')) return;
+      if (e.target.closest('.reblog')) return;
+      e.preventDefault();
+      e.stopPropagation();
       window.location.hash = '#post/' + index;
-    });
+    }
+
+    photo.style.cursor = 'pointer';
+    photo.addEventListener('click', openDetail);
+    img.addEventListener('click', openDetail);
 
     return photo;
   }
