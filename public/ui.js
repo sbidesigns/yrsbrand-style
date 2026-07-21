@@ -141,10 +141,12 @@
   function buildHeader(data) {
     var header = el('div', { id: 'header' });
 
+    var logoDiv = el('div', { id: 'logo' });
     var titleLink = el('a', { href: '/', title: 'Home' });
     var h1 = el('h1', {}, data.brand);
     titleLink.appendChild(h1);
-    header.appendChild(titleLink);
+    logoDiv.appendChild(titleLink);
+    header.appendChild(logoDiv);
 
     var linksDiv = el('div', { className: 'links' });
     var centerWrap = el('center');
