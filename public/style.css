@@ -1,7 +1,6 @@
 /* ── Legacy Tumblr overrides (kept for compatibility) ── */
 tmblr-iframe-compact .tmblr-iframe--unified-controls { display: none !important; }
-#logo, .logo { display: none !important; }
-#btn_tumblr, .btn_tumblr { display: none !important; }
+.btn_tumblr { display: none !important; }
 #credit-box, .credit-box { display: none !important; }
 #container { text-align: -webkit-center !important; }
 
