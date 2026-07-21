@@ -61,13 +61,19 @@ body { padding:0; margin:0; font-family:'Helvetica Neue', Helvetica, Arial, sans
   justify-content: center;
   text-decoration: none;
   padding: 0;
-  line-height: 0;
+  margin: 0;
+  width: 20px;
+  height: 20px;
+  overflow: hidden;
+  flex-shrink: 0;
 }
 .social-row a:hover { opacity: 0.5; }
 .social-row svg {
   display: block;
-  width: 18px;
-  height: 18px;
+  width: 20px !important;
+  height: 20px !important;
+  max-width: 20px !important;
+  max-height: 20px !important;
 }
 
 /* ─── Post Detail (Permalink) ─── */
