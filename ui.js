@@ -273,7 +273,7 @@
       default:       div.innerHTML = '<p style="padding:20px;color:#aaa">Unknown post type</p>'; break;
     }
 
-    var perma = el('div', { id: 'post_perma' + (post.type === 'photo' ? ' invisible' : '') });
+    var perma = el('div', { id: 'post_perma' });
     perma.appendChild(el('a', { href: post.url || '#', className: 'd' }, post.date || ''));
     perma.appendChild(el('a', { href: post.url || '#', className: 't' }, post.timeAgo || ''));
     div.appendChild(perma);
