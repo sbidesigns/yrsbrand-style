@@ -43,35 +43,14 @@
   </div>
   <div id="center"></div>
   <script>
-    /* ── Clean Masonry Grid ────────────────────────────────────── */
+    /* ── Masonry via CSS Columns — JS only sets column count ─── */
     function masonryLayout() {
       var c = document.getElementById('container');
       if (!c) return;
-      var posts = c.querySelectorAll('.post');
-      if (!posts.length) return;
-
-      var COL_W = 320, GAP = 30;
-      c.style.display = 'flex';
-      c.style.flexWrap = 'wrap';
-      c.style.justifyContent = 'center';
-      c.style.alignContent = 'flex-start';
-      c.style.gap = GAP + 'px';
-
-      var w = c.offsetWidth;
-      var cols = Math.max(1, Math.floor((w + GAP) / (COL_W + GAP)));
-      var h = new Array(cols).fill(0);
-
-      posts.forEach(function(p) {
-        p.style.position = 'absolute';
-        p.style.width = COL_W + 'px';
-        p.style.margin = '0';
-        var s = 0;
-        for (var i=1;i<cols;i++) if(h[i]<h[s]) s=i;
-        p.style.left = (s*(COL_W+GAP))+'px';
-        p.style.top = h[s]+'px';
-        h[s] += p.offsetHeight + GAP;
-      });
-      c.style.height = Math.max.apply(null,h)+'px';
+      var w = c.offsetWidth || 1050;
+      var colW = 330; /* post width + gap */
+      var cols = Math.max(1, Math.floor(w / colW));
+      c.style.columnCount = cols;
     }
     window.addEventListener('resize', masonryLayout);
     window.addEventListener('load', function(){ setTimeout(masonryLayout,100); });
