@@ -11,7 +11,7 @@
   var POSTS_KEY = 'yrs_posts';
   var PER_PAGE = 10;
   var currentPage = 0;
-  var _currentFilter = null; // null = all, 'video' = music & videos
+  var _currentFilter = null; // null = all, 'media' = music & videos, 'lifestyle' = lifestyle posts
 
   function getStoredPosts() {
     try {
@@ -34,7 +34,10 @@
     var stored = getStoredPosts();
     var base = stored ? stored.filter(function (p) { return p.published !== false; }) : SITE_DATA.posts;
     if (_currentFilter) {
-      return base.filter(function (p) { return p.type === _currentFilter; });
+      return base.filter(function (p) {
+        var tags = p.tags || [];
+        return tags.indexOf(_currentFilter) !== -1;
+      });
     }
     return base;
   }
@@ -163,6 +166,7 @@
       var a = el('a', { href: l.href, title: l.title });
       if (l.external) a.target = '_top';
       if (l.panel) a.setAttribute('data-panel', l.panel);
+      if (l.filterTag) a.setAttribute('data-filter-tag', l.filterTag);
       a.textContent = l.label;
       centerWrap.appendChild(a);
     });
@@ -259,10 +263,14 @@
     div.setAttribute('data-post-index', String(idx));
 
     switch (post.type) {
-      case 'photo': div.appendChild(buildPhotoPost(post, idx)); break;
-      case 'video': div.appendChild(buildVideoPost(post)); break;
-      case 'link':  div.appendChild(buildLinkPost(post));  break;
+      case 'photo':  div.appendChild(buildPhotoPost(post, idx)); break;
+      case 'video':  div.appendChild(buildVideoPost(post)); break;
+      case 'audio':  div.appendChild(buildAudioPost(post)); break;
+      case 'link':   div.appendChild(buildLinkPost(post)); break;
+      case 'quote':  div.appendChild(buildQuotePost(post)); break;
+      case 'text':   div.appendChild(buildTextPost(post)); break;
       case 'reblog': div.innerHTML = post.html; break;
+      default:       div.innerHTML = '<p style="padding:20px;color:#aaa">Unknown post type</p>'; break;
     }
 
     var perma = el('div', { id: 'post_perma' + (post.type === 'photo' ? ' invisible' : '') });
@@ -369,7 +377,89 @@
   function buildLinkPost(post) {
     var a = el('a', { href: post.href, className: 'link' });
     a.appendChild(el('h3', {}, post.title));
+    if (post.desc) {
+      var desc = el('p', { className: 'link-desc' }, post.desc);
+      a.appendChild(desc);
+    }
     return a;
+  }
+
+  /* ── Audio Post (Spotify / SoundCloud / Apple Music) ──────── */
+
+  function buildAudioPost(post) {
+    var wrap = el('div', { className: 'audio-post' });
+    var platform = (post.platform || 'spotify').toLowerCase();
+    var iconMap = {
+      spotify: '\u266B', // ♫
+      soundcloud: '\u266C', // ♬
+      apple: '\u266A'  // ♪
+    };
+    var platformLabel = platform.charAt(0).toUpperCase() + platform.slice(1);
+
+    // Platform badge
+    var badge = el('span', { className: 'audio-badge' }, iconMap[platform] || '\u266B' + ' ' + platformLabel);
+    wrap.appendChild(badge);
+
+    // Title
+    if (post.title) {
+      var titleEl = el('h3', { className: 'audio-title' }, post.title);
+      wrap.appendChild(titleEl);
+    }
+    if (post.artist) {
+      var artistEl = el('span', { className: 'audio-artist' }, post.artist);
+      wrap.appendChild(artistEl);
+    }
+
+    // Embed iframe
+    var iframeWrap = el('div', { className: 'audio-embed-wrap' });
+    var iframe = el('iframe', {
+      className: 'audio-iframe',
+      src: post.embedUrl,
+      frameborder: '0',
+      allow: 'autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture',
+      loading: 'lazy'
+    });
+    iframe.style.cssText = 'width:100%;height:' + (platform === 'soundcloud' ? '166' : '152') + 'px;border:0;border-radius:4px;';
+    iframeWrap.appendChild(iframe);
+    wrap.appendChild(iframeWrap);
+
+    return wrap;
+  }
+
+  /* ── Quote Post ───────────────────────────────────────────── */
+
+  function buildQuotePost(post) {
+    var wrap = el('div', { className: 'quote-post' });
+    var quoteText = el('blockquote', { className: 'quote-text' });
+    quoteText.innerHTML = post.text || '';
+    wrap.appendChild(quoteText);
+
+    // Large decorative quote mark
+    var symbol = el('span', { className: 'quote-symbol' }, '\u201C');
+    wrap.appendChild(symbol);
+
+    if (post.source) {
+      var source = el('p', { className: 'quote-source' }, '\u2014 ' + post.source);
+      wrap.appendChild(source);
+    }
+
+    return wrap;
+  }
+
+  /* ── Text Post ────────────────────────────────────────────── */
+
+  function buildTextPost(post) {
+    var wrap = el('div', { className: 'text-post' });
+    if (post.title) {
+      var h3 = el('h3', { className: 'text-title' }, post.title);
+      wrap.appendChild(h3);
+    }
+    if (post.body) {
+      var body = el('div', { className: 'text-body' });
+      body.innerHTML = post.body;
+      wrap.appendChild(body);
+    }
+    return wrap;
   }
 
   /* ── Share Bar Builder ────────────────────────────────────── */
@@ -564,16 +654,38 @@
         postDiv.appendChild(wrapper);
         break;
       }
+      case 'audio': {
+        postDiv.appendChild(buildAudioPost(post));
+        // Fix iframe width for detail view
+        var audioIframe = postDiv.querySelector('.audio-iframe');
+        if (audioIframe) audioIframe.style.width = '500px';
+        break;
+      }
       case 'link': {
         var linkA = el('a', { href: post.href, target: '_blank', className: 'link' });
         linkA.appendChild(el('h3', {}, post.title));
+        if (post.desc) {
+          var descP = el('p', { className: 'link-desc' }, post.desc);
+          linkA.appendChild(descP);
+        }
         postDiv.appendChild(linkA);
+        break;
+      }
+      case 'quote': {
+        postDiv.appendChild(buildQuotePost(post));
+        break;
+      }
+      case 'text': {
+        postDiv.appendChild(buildTextPost(post));
         break;
       }
       case 'reblog': {
         postDiv.innerHTML = post.html;
         break;
       }
+      default:
+        postDiv.innerHTML = '<p style="padding:20px;color:#aaa">Unknown post type</p>';
+        break;
     }
 
     // Permalink footer — same style as grid posts
@@ -642,20 +754,20 @@
 
   /* ── Panel toggle ────────────────────────────────────────── */
 
-  function setFilter(type) {
-    _currentFilter = type;
+  function setFilter(tag) {
+    _currentFilter = tag;
     currentPage = 0;
     // Update active state on nav links
     var links = document.querySelectorAll('#header .links a');
     links.forEach(function (a) {
-      var label = (a.textContent || '').toLowerCase();
-      if (type === 'video' && (label.indexOf('music') !== -1 || label.indexOf('video') !== -1)) {
+      var linkTag = a.getAttribute('data-filter-tag');
+      if (tag && linkTag === tag) {
         a.style.fontWeight = '900';
         a.style.color = '#000';
-      } else if (type === null && label.indexOf('lifestyle') !== -1) {
+      } else if (!tag && !linkTag) {
         a.style.fontWeight = 'bold';
         a.style.color = '#000';
-      } else if (!a.getAttribute('data-panel')) {
+      } else {
         a.style.fontWeight = 'bold';
         a.style.color = '#000';
       }
@@ -696,25 +808,14 @@
     // Nav link filter handlers
     var navLinks = content.querySelectorAll('#header .links a');
     navLinks.forEach(function (a) {
-      var label = (a.textContent || '').toLowerCase();
-      // Music & Videos → filter video posts
-      if (label.indexOf('music') !== -1 || label.indexOf('video') !== -1) {
+      var filterTag = a.getAttribute('data-filter-tag');
+      if (filterTag) {
         a.addEventListener('click', function (e) {
           e.preventDefault();
           closePostDetail();
           hide('#hovers, #description_box, #connect_box, #blogroll_box, #twitter_box');
           show('#container, #load_box');
-          setFilter('video');
-        });
-      }
-      // Lifestyle → show all posts
-      else if (label.indexOf('lifestyle') !== -1) {
-        a.addEventListener('click', function (e) {
-          e.preventDefault();
-          closePostDetail();
-          hide('#hovers, #description_box, #connect_box, #blogroll_box, #twitter_box');
-          show('#container, #load_box');
-          setFilter(null);
+          setFilter(filterTag);
         });
       }
     });

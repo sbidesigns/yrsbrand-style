@@ -228,29 +228,46 @@
 
   function gatherFormData() {
     var type = document.getElementById('af-type').value;
+    var tagsInput = document.getElementById('af-tags');
     var data = {
       _id: editingId || genId(),
       type: type,
       date: document.getElementById('af-date').value,
       published: document.getElementById('af-published').value === 'true',
       sortOrder: parseInt(document.getElementById('af-order').value, 10) || 0,
-      timeAgo: '',
-      url: ''
+      timeAgo: document.getElementById('af-timeago').value || '',
+      url: '',
+      tags: tagsInput ? tagsInput.value.split(',').map(function (t) { return t.trim().toLowerCase(); }).filter(function (t) { return t; }) : []
     };
 
     switch (type) {
       case 'photo':
         data.img = document.getElementById('af-img').value;
         data.notes = parseInt(document.getElementById('af-notes').value, 10) || 0;
-        data.reblogUrl = document.getElementById('af-reblog').value;
+        data.caption = document.getElementById('af-caption').value;
         break;
       case 'video':
         data.src = document.getElementById('af-src').value;
         data.title = document.getElementById('af-vtitle').value;
         break;
+      case 'audio':
+        data.platform = document.getElementById('af-platform').value;
+        data.artist = document.getElementById('af-artist').value;
+        data.embedUrl = document.getElementById('af-embedUrl').value;
+        data.title = document.getElementById('af-atitle').value;
+        break;
       case 'link':
         data.title = document.getElementById('af-ltitle').value;
         data.href = document.getElementById('af-lhref').value;
+        data.desc = document.getElementById('af-ldesc').value;
+        break;
+      case 'quote':
+        data.text = document.getElementById('af-qtext').value;
+        data.source = document.getElementById('af-qsource').value;
+        break;
+      case 'text':
+        data.title = document.getElementById('af-ttitle').value;
+        data.body = document.getElementById('af-tbody').value;
         break;
       case 'reblog':
         data.html = document.getElementById('af-html').value;
@@ -264,7 +281,10 @@
     var type = post.type || 'photo';
     var isPhoto = type === 'photo';
     var isVideo = type === 'video';
+    var isAudio = type === 'audio';
     var isLink = type === 'link';
+    var isQuote = type === 'quote';
+    var isText = type === 'text';
     var isReblog = type === 'reblog';
 
     var formEl = document.getElementById('admin-form');
@@ -276,7 +296,10 @@
         '<select id="af-type">' +
           '<option value="photo"' + (isPhoto ? ' selected' : '') + '>Photo</option>' +
           '<option value="video"' + (isVideo ? ' selected' : '') + '>Video</option>' +
+          '<option value="audio"' + (isAudio ? ' selected' : '') + '>Audio / Music</option>' +
           '<option value="link"' + (isLink ? ' selected' : '') + '>Link</option>' +
+          '<option value="quote"' + (isQuote ? ' selected' : '') + '>Quote</option>' +
+          '<option value="text"' + (isText ? ' selected' : '') + '>Text</option>' +
           '<option value="reblog"' + (isReblog ? ' selected' : '') + '>Reblog</option>' +
         '</select>' +
       '</div><div>' +
@@ -292,6 +315,13 @@
       '</div><div>' +
         '<label>Sort Order (lower = first)</label>' +
         '<input id="af-order" type="number" value="' + (post.sortOrder || 0) + '" />' +
+      '</div></div>' +
+      '<div class="row"><div>' +
+        '<label>Tags (comma-separated)</label>' +
+        '<input id="af-tags" type="text" placeholder="lifestyle, photo, apparel" value="' + escAttr((post.tags || []).join(', ')) + '" />' +
+      '</div><div>' +
+        '<label>Time Ago Label</label>' +
+        '<input id="af-timeago" type="text" placeholder="e.g. 2 days ago" value="' + escAttr(post.timeAgo || '') + '" />' +
       '</div></div>';
 
     if (isPhoto) {
@@ -301,8 +331,8 @@
           '<label>Notes Count</label>' +
           '<input id="af-notes" type="number" value="' + (post.notes || 0) + '" />' +
         '</div><div>' +
-          '<label>Reblog URL (optional)</label>' +
-          '<input id="af-reblog" type="text" placeholder="https://..." value="' + escAttr(post.reblogUrl || '') + '" />' +
+          '<label>Caption (optional)</label>' +
+          '<input id="af-caption" type="text" placeholder="Brief caption text" value="' + escAttr(post.caption || '') + '" />' +
         '</div></div>';
     }
 
@@ -313,11 +343,46 @@
         '<input id="af-vtitle" type="text" placeholder="My Video Title" value="' + escAttr(post.title || '') + '" />';
     }
 
+    if (isAudio) {
+      html += '<div class="row"><div>' +
+        '<label>Platform</label>' +
+        '<select id="af-platform">' +
+          '<option value="spotify"' + ((post.platform || 'spotify') === 'spotify' ? ' selected' : '') + '>Spotify</option>' +
+          '<option value="soundcloud"' + (post.platform === 'soundcloud' ? ' selected' : '') + '>SoundCloud</option>' +
+          '<option value="apple"' + (post.platform === 'apple' ? ' selected' : '') + '>Apple Music</option>' +
+        '</select>' +
+      '</div><div>' +
+        '<label>Artist Name</label>' +
+        '<input id="af-artist" type="text" placeholder="Artist or DJ name" value="' + escAttr(post.artist || '') + '" />' +
+      '</div></div>' +
+        '<label>Embed URL</label>' +
+        '<input id="af-embedUrl" type="text" placeholder="https://open.spotify.com/embed/track/..." value="' + escAttr(post.embedUrl || '') + '" />' +
+        '<small style="display:block;color:#888;font-size:9px;margin-top:-12px;margin-bottom:8px;">Spotify: open.spotify.com/embed/track/ID &nbsp;|&nbsp; SoundCloud: w.soundcloud.com/player/?url=... &nbsp;|&nbsp; Apple: embed.music.apple.com/...</small>' +
+        '<label>Track / Playlist Title</label>' +
+        '<input id="af-atitle" type="text" placeholder="Track name or playlist title" value="' + escAttr(post.title || '') + '" />';
+    }
+
     if (isLink) {
       html += '<label>Link Title</label>' +
         '<input id="af-ltitle" type="text" placeholder="Article Title" value="' + escAttr(post.title || '') + '" />' +
         '<label>Link URL</label>' +
-        '<input id="af-lhref" type="text" placeholder="https://example.com" value="' + escAttr(post.href || '') + '" />';
+        '<input id="af-lhref" type="text" placeholder="https://example.com" value="' + escAttr(post.href || '') + '" />' +
+        '<label>Description (optional)</label>' +
+        '<input id="af-ldesc" type="text" placeholder="Brief description of the link" value="' + escAttr(post.desc || '') + '" />';
+    }
+
+    if (isQuote) {
+      html += '<label>Quote Text</label>' +
+        '<textarea id="af-qtext" placeholder="Enter the quote text..." style="min-height:80px;">' + escHtml(post.text || '') + '</textarea>' +
+        '<label>Source / Attribution</label>' +
+        '<input id="af-qsource" type="text" placeholder="e.g. YRS Brand Manifesto" value="' + escAttr(post.source || '') + '" />';
+    }
+
+    if (isText) {
+      html += '<label>Title (optional)</label>' +
+        '<input id="af-ttitle" type="text" placeholder="Post title" value="' + escAttr(post.title || '') + '" />' +
+        '<label>Body Content (HTML allowed)</label>' +
+        '<textarea id="af-tbody" placeholder="<p>Your content here...</p>" style="min-height:140px;">' + escHtml(post.body || '') + '</textarea>';
     }
 
     if (isReblog) {
