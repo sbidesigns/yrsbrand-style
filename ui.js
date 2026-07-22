@@ -673,7 +673,9 @@
   };
 
   function buildShareBar(post) {
-    var url = post.url || window.location.href;
+    /* Use THIS SITE'S clean permalink, not post.url (which is source/Tumblr) */
+    var idx = getAllPosts().indexOf(post);
+    var url = SITE_URL + '/post/' + idx;
     var title = 'YRS Brand';
     var desc = post.date ? 'Posted on ' + post.date : '';
     var img = post.img || '';
