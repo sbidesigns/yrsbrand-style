@@ -43,7 +43,7 @@
   </div>
   <div id="center"></div>
   <script>
-    /* ── Masonry Layout — column-count (max 3) for gap-fill ─── */
+    /* ── Masonry Layout — column-count (max 3) + auto-centering ─── */
     function masonryLayout() {
       var c = document.getElementById('container');
       if (!c) return;
@@ -69,7 +69,6 @@
       c.style.textAlign = '';
       c.style.paddingLeft = '';
       c.style.paddingRight = '';
-      c.style.width = '';
 
       /* Calculate columns based on viewport — MAX 3 */
       var viewportWidth = window.innerWidth;
@@ -81,6 +80,11 @@
       /* TRUE MASONRY: CSS column-count — browser handles gap-filling natively */
       c.style.columnCount = cols;
       c.style.columnGap = colGap + 'px';
+
+      /* CENTERING: shrink container to fit content exactly,
+         margin:0 auto from CSS centers it within max-width:1000px */
+      var contentWidth = (cols * postWidth) + ((cols - 1) * colGap);
+      c.style.width = contentWidth + 'px';
     }
     window.addEventListener('resize', masonryLayout);
     window.addEventListener('load', function(){ setTimeout(masonryLayout,100); });
