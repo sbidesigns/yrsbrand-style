@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Redirecting...</title>
+  <script type="text/javascript">
+    // GitHub Pages SPA fallback — preserve the requested path
+    // When user visits /post/3 directly, this redirects to /?p=/post/3
+    // Then index.js reads ?p= and uses history.replaceState to fix URL
+    var path = window.location.pathname;
+    var search = window.location.search;
+    // Don't redirect if already at root or it's an actual asset
+    if (path !== '/' && !path.match(/\.(js|css|png|jpg|gif|svg|ico|woff|woff2|ttf|eot)$/)) {
+      window.location.href = '/?p=' + encodeURIComponent(path + search);
+    }
+  </script>
+</head>
+<body>
+  <p>Redirecting...</p>
+</body>
+</html>

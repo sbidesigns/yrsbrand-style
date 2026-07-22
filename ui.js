@@ -55,11 +55,17 @@
 
   function init() {
     seedStorage();
+    /* Handle GitHub Pages 404 fallback: /?p=/post/3 → fix URL then route */
+    var params = new URLSearchParams(window.location.search);
+    var p = params.get('p');
+    if (p) {
+      history.replaceState(null, '', decodeURIComponent(p));
+    }
     var data = SITE_DATA;
     buildPage(data);
     hideLoader();
     initScrollEffects();
-    initHashRouter();
+    initRouter();
   }
 
   /* ── Page Builder ────────────────────────────────────────── */
@@ -97,7 +103,7 @@
       
       var idx = postEl.getAttribute('data-post-index');
       if (idx !== null) {
-        window.location.hash = '#post/' + idx;
+        goToPost(idx);
       }
       return false;
     }, true); // capture phase
@@ -158,7 +164,7 @@
     var linksDiv = el('div', { className: 'links' });
     var centerWrap = el('center');
 
-    var aboutA = el('a', { href: '#description', className: 'description' });
+    var aboutA = el('a', { href: '/description', className: 'description' });
     aboutA.textContent = 'About';
     centerWrap.appendChild(aboutA);
 
@@ -303,7 +309,7 @@
     dateSpan.addEventListener('click', function (e) {
       e.stopPropagation();
       e.preventDefault();
-      window.location.hash = '#post/' + index;
+      goToPost(index);
     });
 
     var reblogDiv = el('div', { className: 'reblog' }, 'repost');
@@ -340,7 +346,7 @@
       e.preventDefault();
       e.stopPropagation();
       e.stopImmediatePropagation();
-      window.location.hash = '#post/' + index;
+      goToPost(index);
       return false;
     }
 
@@ -489,7 +495,7 @@
           caption: caption,
           content: post.img || '',
           tags: tags,
-          url: SITE_URL + '#post/' + getAllPosts().indexOf(post)
+          url: SITE_URL + '/post/' + getAllPosts().indexOf(post)
         };
         break;
 
@@ -501,7 +507,7 @@
           caption: caption,
           embed: post.src || '',
           tags: tags,
-          url: SITE_URL + '#post/' + getAllPosts().indexOf(post)
+          url: SITE_URL + '/post/' + getAllPosts().indexOf(post)
         };
         break;
 
@@ -574,7 +580,7 @@
     if (!post) return;
 
     var idx = getAllPosts().indexOf(post);
-    var postUrl = SITE_URL + '#post/' + idx;
+    var postUrl = SITE_URL + '/post/' + idx;
     var title = 'YRS Brand';
     var desc = 'Apparel that motivates and inspires.';
     var img = '';
@@ -754,19 +760,26 @@
     return bar;
   }
 
-  /* ── Hash Router (post detail) ───────────────────────────── */
+  /* ── Clean URL Router (History API — no hashbangs!) ───────── */
 
   var _savedScrollY = 0;
 
-  function initHashRouter() {
-    function onHash() {
-      var hash = window.location.hash;
-      var match = hash.match(/^#post\/(\d+)$/);
+  /** Navigate to a post detail page with clean URL */
+  function goToPost(index) {
+    _savedScrollY = window.scrollY || window.pageYOffset || 0;
+    history.pushState(null, '', '/post/' + index);
+    showPostDetail(index);
+  }
+
+  function initRouter() {
+    function onPop(e) {
+      var path = window.location.pathname;
+      var match = path.match(/^\/post\/(\d+)$/);
       if (match) {
         // Save position BEFORE entering detail
         _savedScrollY = window.scrollY || window.pageYOffset || 0;
         showPostDetail(parseInt(match[1], 10));
-      } else if (hash === '#description') {
+      } else if (path === '/description' || path === '/about') {
         closePostDetail();
         var aboutBtn = document.querySelector('#header .description');
         if (aboutBtn) aboutBtn.click();
@@ -774,8 +787,8 @@
         closePostDetail();
       }
     }
-    window.addEventListener('hashchange', onHash);
-    onHash();
+    window.addEventListener('popstate', onPop);
+    onPop();
   }
 
   function showPostDetail(index) {
@@ -811,7 +824,7 @@
     backLink.innerHTML = '&larr; Back';
     backLink.addEventListener('click', function (e) {
       e.preventDefault();
-      window.location.hash = '#';
+      window.history.back();
     });
     detail.appendChild(backLink);
 
@@ -1018,7 +1031,7 @@
     if (aboutBtn) {
       aboutBtn.addEventListener('click', function (e) {
         e.preventDefault();
-        window.location.hash = '#description';
+        history.pushState(null, '', '/description');
         closePostDetail();
         show('#description_box, #hovers');
         hide('#container, #load_box, #connect_box, #blogroll_box, #twitter_box, #post_detail_box');
@@ -1036,7 +1049,7 @@
 
     if (closeBtn) {
       closeBtn.addEventListener('click', function () {
-        window.location.hash = '#';
+        history.pushState(null, '', '/');
         hide('#hovers, #ask_box, #submit_box, #twitter_box, #blogroll_box, #disclaimer_box, #state_box, #karmaloop_box, #description_box, #connect_box, #post_detail_box');
         show('#container, #load_box, #page_navigation_if_header');
         setTimeout(masonryLayout, 50);
